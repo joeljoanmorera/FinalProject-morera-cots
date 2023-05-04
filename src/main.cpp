@@ -5,7 +5,6 @@
 #include "spo2_algorithm.h"
 
 MAX30105 particleSensor;
-
 #define MAX_BRIGHTNESS 255
 
 uint32_t irBuffer[100]; //infrared LED sensor data
@@ -51,6 +50,8 @@ void loop()
   Serial.println(validSPO2, DEC);
   
   takingSamples();
+
+  delay(1000); //Take a break 
 }
 
 void initMAX30102()

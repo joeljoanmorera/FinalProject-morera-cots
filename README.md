@@ -1,4 +1,4 @@
-## Ejercicio practico 2 : Utilización del pulsioximetro MAX30102
+# Ejercicio final : Pulsioximetro MAX30102
 
 ###### **Funcionamiento**
 
