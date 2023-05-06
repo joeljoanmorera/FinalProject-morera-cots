@@ -9,9 +9,12 @@ body{
     font: 200 14px 'Poppins', sans-serif;   
 }
 h1{
-    color: #ffffff;
-    font-size: 40px;
-    line-height: 40px;
+    background-image: url(../../images/heart.jpg);
+    background-repeat: repeat;
+    -webkit-background-clip: text;
+    background-position: -15% 46%;
+    color: transparent;
+    font-size: 70px;
 }
 h2{
     color: #999;
@@ -30,8 +33,7 @@ footer{
 }
 /* Classes and Identifiers*/
 #header{
-    background-color: #1d1d1d;
-    height: 65px;
+    height: 85px;
     padding-top: 20px;
     text-align: center;
 }
