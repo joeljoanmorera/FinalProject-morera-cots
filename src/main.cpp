@@ -1,125 +1,165 @@
-#include <Arduino.h>
-#include <Wire.h>
-#include "MAX30105.h"
-#include "heartRate.h"
-#include "spo2_algorithm.h"
+ #include <U8g2lib.h>
+#include <SPI.h>
 
-MAX30105 particleSensor;
-#define MAX_BRIGHTNESS 255
+// Pin's definition
+#define SCL 18
+#define SI 23
+#define CS 5
+#define RS 32
+#define RSE 33
 
-uint32_t irBuffer[100]; //infrared LED sensor data
-uint32_t redBuffer[100];  //red LED sensor data
+// U8g2 Contructor
+U8G2_ST7565_ERC12864_1_4W_SW_SPI u8g2(U8G2_R0, SCL, SI, CS, RS, RSE);
 
-int32_t bufferLength; //data length
-int32_t spo2; //SPO2 value
-int8_t validSPO2; //indicator to show if the SPO2 calculation is valid
-int32_t heartRate; //heart rate value
-int8_t validHeartRate; //indicator to show if the heart rate calculation is valid
+// Display size
+const uint8_t width = u8g2.getDisplayWidth(); // 128 pixels
+const uint8_t height = u8g2.getDisplayHeight(); // 64 pixels
 
-byte readLED = 13; //Blinks with each data read
+// Axis
+int8_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, heartRateYBias, spo2YBias;
 
-bool DSR = true;
+// Data
+int8_t* heartRateData;
+int8_t* spo2Data;
 
-void initMAX30102();
-void determineSignalRate();
-void takingSamples();
+//Function declaration
+void plot();
+void fillData();
+void plotData();
+void printMeasurements();
 
-void setup()
+void setup(void) 
 {
-  Serial.begin(115200); // initialize serial communication at 115200 bits per second:
+    // Serial initialization
+    Serial.begin(115200);
 
-  pinMode(readLED, OUTPUT);
+    // Axis
+    xAxisBegin  = width  - 126;
+    xAxisEnd    = width  - width/2;
+    yAxisBegin  = height - 62;
+    yAxisEnd    = height - 4;
+    heartRateYBias = height/3; //- 40
+    spo2YBias = height - 6;
 
-  initMAX30102();
+    // Data initialization
+    fillData();
+
+    // Display initialization
+    u8g2.begin(); // Inicializa
+    u8g2.setContrast (10); //contraste
+    u8g2.enableUTF8Print(); //Visuliza caracteres UTF-8
 }
 
-void loop()
+void loop(void) 
 {
-  if(DSR)determineSignalRate();
-    
-  Serial.print(F("\t Heart Rate : "));
-  Serial.print(heartRate, DEC);
+    u8g2.firstPage(); // First page
+    do {
+        plot();
+        printMeasurements();
+    }while(u8g2.nextPage());
 
-  Serial.print(F("\t HRvalid : "));
-  Serial.print(validHeartRate, DEC);
-
-  Serial.print(F("\t Saturation in oxygen : "));
-  Serial.print(spo2, DEC);
-
-  Serial.print(F("\t SPO2Valid : "));
-  Serial.println(validSPO2, DEC);
-  
-  takingSamples();
-
-  delay(1000); //Take a break 
+    delay(1000); //Wait 1000ms
 }
 
-void initMAX30102()
+void printMeasurements()
 {
-  // Initialize sensor
-  if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) //Use default I2C port, 400kHz speed
-  {
-    Serial.println(F("MAX30105 was not found. Please check wiring/power."));
-    while (1);
-  }
-  
-  byte ledBrightness = 60;  //Options: 0=Off to 255=50mA
-  byte sampleAverage = 4;   //Options: 1, 2, 4, 8, 16, 32
-  byte ledMode = 2;         //Options: 1 = Red only, 2 = Red + IR, 3 = Red + IR + Green
-  byte sampleRate = 100;    //Options: 50, 100, 200, 400, 800, 1000, 1600, 3200
-  int pulseWidth = 411;     //Options: 69, 118, 215, 411
-  int adcRange = 4096;      //Options: 2048, 4096, 8192, 16384
-  
-  particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
+    u8g2.setFont(u8g2_font_luBS10_tf );
+    u8g2.setCursor(xAxisEnd + 8, heartRateYBias );
+    u8g2.print("60 BPM");
+    u8g2.setCursor(xAxisEnd + 20, spo2YBias );
+    u8g2.print("98 \% ");
 }
 
-void determineSignalRate()
+void plot()
 {
-  bufferLength = 100; //buffer length of 100 stores 4 seconds of samples running at 25sps
-  Serial.print("Determining signal rate ..");
-  //read the first 100 samples, and determine the signal range
-  for (byte i = 0 ; i < bufferLength ; i++)
-  {
-    while (particleSensor.available() == false) //do we have new data?
-    
-    particleSensor.check(); //Check the sensor for new data
+    u8g2.drawLine(xAxisBegin, yAxisBegin, xAxisBegin, yAxisEnd);                // Y-axis
+    u8g2.drawLine(xAxisBegin, yAxisEnd, xAxisEnd, yAxisEnd);                    // X-axis
+    plotData();
+}
 
-    redBuffer[i] = particleSensor.getRed();
-    irBuffer[i] = particleSensor.getIR();
-    particleSensor.nextSample(); //We're finished with this sample so move to next sample
-    if(i%25 == 0)
-    {  
-      Serial.print('.');
+void fillData()
+{   
+    int8_t* heartRateData_temp = new int8_t[xAxisEnd - xAxisBegin];
+    int8_t* spo2Data_temp = new int8_t[xAxisEnd - xAxisBegin];
+
+    int j = 0;
+    for (uint8_t i = 0; i < xAxisEnd; i++)
+    {
+        // Little mountain in the middle with a value of yAxisEnd
+        if (i < xAxisEnd/4)
+        {
+            spo2Data_temp[i] = 0;
+        }
+        else if (i < xAxisEnd/2)
+        {
+            spo2Data_temp[i] =  j;
+            j++;
+        }
+        else if (i < 3*xAxisEnd/4)
+        {
+            j--;
+            spo2Data_temp[i] = j;
+        }
+        else
+        {
+            spo2Data_temp[i] = 0;
+        }
     }
-  }
-  //calculate heart rate and SpO2 after first 100 samples (first 4 seconds of samples)
-  maxim_heart_rate_and_oxygen_saturation(irBuffer, bufferLength, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
-  DSR = false;
-  Serial.println("\nSignal determining done!");
+
+    for (uint8_t i = 0; i < xAxisEnd; i++)
+    {
+        // Little mountain in the middle with a value of yAxisEnd
+        if (i < xAxisEnd/4)
+        {
+            heartRateData_temp[i] = 0;
+        }
+        else if (i < 3*xAxisEnd/8)
+        {
+            heartRateData_temp[i] =  j;
+            j+=2;
+        }
+        else if (i < 5*xAxisEnd/8)
+        {
+            j-=2;
+            heartRateData_temp[i] = j;
+            
+        }
+        else if (i < 3*xAxisEnd/4)
+        {
+            j+=2;
+            heartRateData_temp[i] = j;
+        }
+        else
+        {
+            heartRateData_temp[i] = 0;
+        }
+    }
+
+    heartRateData = heartRateData_temp;
+    spo2Data = spo2Data_temp;
 }
 
-void takingSamples()//Continuously taking samples from MAX30102.  Heart rate and SpO2 are calculated every 1 second
+void plotData()
 {
-  //dumping the first 25 sets of samples in the memory and shift the last 75 sets of samples to the top
-  for (byte i = 25; i < 100; i++)
-  {
-    redBuffer[i - 25] = redBuffer[i];
-    irBuffer[i - 25] = irBuffer[i];
-  }
-
-  //take 25 sets of samples before calculating the heart rate.
-  for (byte i = 75; i < 100; i++)
-  {
-    while (particleSensor.available() == false) //do we have new data?
-      particleSensor.check(); //Check the sensor for new data
-
-    digitalWrite(readLED, !digitalRead(readLED)); //Blink onboard LED with every data read
-
-    redBuffer[i] = particleSensor.getRed();
-    irBuffer[i] = particleSensor.getIR();
-    particleSensor.nextSample(); //We're finished with this sample so move to next sample
-  }
-
-  //After gathering 25 new samples recalculate HR and SP02
-  maxim_heart_rate_and_oxygen_saturation(irBuffer, bufferLength, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
+    for (uint8_t i = 0; i < xAxisEnd; i++)
+    {
+        u8g2.drawPixel(xAxisBegin + i, heartRateYBias - heartRateData[i]);
+        u8g2.drawPixel(xAxisBegin + i, spo2YBias - spo2Data[i]);
+    }
 }
+
+//Haz hasta que se devuelva 1
+        //u8g2.setFont(u8g2_font_luBS10_tf );
+        // establece font Lúcida a 10 pixel
+        //u8g2.drawFrame(0,0,128,64);
+        // Dibujar un borde de 64 x 128 pixels
+        //u8g2.setCursor(6, 25);
+        // Pon cursor en x = 6, y = 25
+        //u8g2.print("HOLA MUNDO !");
+        //Muestra esta cadena
+        //u8g2.setCursor(6, 40);
+        // Set en x = 6, y = 40
+        //u8g2.setCursor(14, 55);
+        // Set en x = 14, y = 55
+        //u8g2.print("BUENOS DIAS ");
+        //Muestra la cadena

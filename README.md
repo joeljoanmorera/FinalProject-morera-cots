@@ -12,6 +12,23 @@ Para actualizar las muestras, cosa que se hará cada segundo, primero descartamo
 
 Todas las veces que se calculan nuevos valores son mostrados por pantalla, junto con un indicador que nos muestra la validez de cada valor.
 
+|PIN GMG-12864-06D| PIN ESP32 | Description |
+|-----------------|-----------|-------------|
+|CS               |GPIO 5     |Chip Select  |
+|RSE              |GPIO 32    |Reset        |
+|RS               |GPIO 33    |DC           |
+|SCL              |GPIO 18    |SPI Clock    |
+|SI               |GPIO 23    |SPI Data     |
+|VDD              |3V3        |VCC          |
+|VSS              |GND        |GND          |
+|A                |47Ω -> 3V3 |Anode        |
+|K                |GND        |Cathode      |
+
+|Layout GMG-12864-06D| Description                    |
+|--------------------|--------------------------------|
+|U8G2_R0             |Landscape                       |
+|U8G2_R1             |90 degree clockwise rotatio     |
+
 ###### **Código del programa**
 
 - platformio.ini:
