@@ -1,0 +1,48 @@
+/* General*/
+*{
+    margin:0px;
+    padding: 0px;
+}
+body{
+    background-color: #252525 ;
+    color: #999999;
+    font: 200 14px 'Poppins', sans-serif;   
+}
+h1{
+    color: #ffffff;
+    font-size: 40px;
+    line-height: 40px;
+}
+h2{
+    color: #999;
+    font-size: 18px;
+    font-weight: 300;
+}
+p{
+    text-align: justify;
+}
+
+footer{
+    background-color: #1d1d1d;
+    height: 55px;
+    padding-top: 20px;
+    text-align: center;
+}
+/* Classes and Identifiers*/
+#header{
+    background-color: #1d1d1d;
+    height: 65px;
+    padding-top: 20px;
+    text-align: center;
+}
+.card{
+    color: #ffffff;
+    font-size: 40px;
+    line-height: 40px;
+    background-color: #1d1d1d;
+    justify-content: center;
+    border-radius: 15px;
+    text-align: center;
+    margin: 20px;
+    padding: 10px;
+}

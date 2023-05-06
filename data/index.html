@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+
+<html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Heartrate & SPO2</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300&display=swap" rel="stylesheet">
+        <script src="https://kit.fontawesome.com/22446ba122.js" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="./css/stylesheet.css">
+        <script src="./js/script.js"></script>
+    </head>
+
+    <body>
+        <article>
+
+            <!-- Header -->
+            <section id="header">
+                <h1>Heartrate & SPO2</h1>
+            </section>
+                
+            <!-- Heartrate -->
+            <section class="card">
+                <h2>Frecuencia cardíaca</h2>
+                <p id="heartrate">[VALUE] BPM</p>
+                <canvas id="chart"></canvas>
+            </section>
+
+            <!-- SPO2 -->
+            <section class="card">
+                <h2>Saturacion de oxígeno</h2>
+                <p id="spo2">[VALUE] %</p>
+                <canvas id="chart"></canvas>
+            </section>
+            
+        </article>
+
+        <!-- Footer -->
+        <footer>
+            <p>© 2023 - Heartrate & SPO2 - Gerard Cots i Escude & Joel J. Morera Bokobo</p>
+        </footer>
+    </body>
+</html>
