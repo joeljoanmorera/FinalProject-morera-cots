@@ -1,0 +1,34 @@
+v=load('dades.txt');
+v1=load('dades1.txt');
+
+
+figure;
+subplot (2,1,1);
+plot(v);
+title('HeartBeat sense filtrar')
+subplot(2,1,2)
+plot(v1);
+title('HeartBeat filtrat')
+
+N1=length(v1);
+N=length(v);
+V=fft(v);
+V1=fft(v1);
+fs=25;
+
+f = (0:N-1)*(fs/N);
+f1= (0:N1-1)*(fs/N1);
+
+figure;
+subplot (2,1,1);
+plot(f, abs(V));
+xlim([0 3])
+xlabel('Freqüència (Hz)');
+
+ylabel('No filtrat Mòdul');
+
+subplot(2,1,2);
+plot(f1, abs(V1));
+xlim([0 3])
+xlabel('Frequencia (Hz)');
+ylabel('Filtrat Modul');
