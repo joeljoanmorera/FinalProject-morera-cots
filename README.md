@@ -1,18 +1,38 @@
-# Ejercicio final : Pulsioximetro MAX30102
+# Ejercicio final : Pulsioximetro 
 
 ###### **Funcionamiento**
 
-En el siguiente ejercicio se describe un programa para mostrar por pantalla las medidas que calcula el pulsioximetro MAX30102. En el codigo diferenciamos tres funciones principales: inicialización del dispositivos, determinar la velocidad de la señal y actulizar muestras.
+En el siguiente ejercicio se describe un programa para mostrar por pantalla las medidas que calculan dos dispositivos: el `X` y el `Y`. El funcionamiento del programa se diferencia en 2 etapas muy diferenciadas, cada una ejecutandose en uno de los nucleos del ESP32:
 
-En la inicialización del pulsioximetro definimos la velocidad de transimision a 400kHz y las variables recomendadas de configuración del sensor para conseguir los valores más precisos possibles.
+```mermaid
+  flowchart LR;
 
-Determinar la velocidad de la señal consiste en leer las 100 primeras muestras y guardarlas en dos _buffers_, uno para el led rojo y otro para el infrarojo. Seguidamente, calculamos la frecuencia cardiaca y la saturación de oxígeno en sangre y ponemos la orden de determinar la velocidad de la señal a 0.
+  subgraph L[Lectura de datos]
+    O((Obtencion \n de los datos)) --> F((Filtrado de \n los datos))
+  end
+ 
+  L --> V
 
-Para actualizar las muestras, cosa que se hará cada segundo, primero descartamos las primeras 25 muestras, desplazamos el resto al inicio y leemos otras 25. Por último, volvemos a calular la frecuencia cardiaca y la saturación de oxígeno en sangre.
+  subgraph V[Visualizacion de datos]
+    D((Visualicacion de los \n datos por un display))
+    H((Visualizacion de los \n datos por una pagina web))
+  end
 
-Todas las veces que se calculan nuevos valores son mostrados por pantalla, junto con un indicador que nos muestra la validez de cada valor.
+```
 
-|PIN GMG-12864-06D| PIN ESP32 | Description |
+### Lectura de los datos
+
+### Visualizacion de los datos
+
+La visualizacion de los datos se ha implementado de dos maneras diferentes, una por un display y otra por una pagina web. Ambas se ejecutan en el nucleo 1 del ESP32.
+
+#### Display
+
+El display con el que trabajaremos consiste en un GMG12864-06D, el cual es un display de 128x64 pixeles de resolucion. Este display se comunica con el ESP32 mediante el protocolo SPI, por lo que se ha utilizado la libreria `SPI` y `U8g2lib` para facilitar la comunicacion.
+
+El display se connecta al ESP32 mediante 7 pines, los cuales se muestran en la siguiente tabla con su correspondiente descripcion:
+
+|PIN GMG-12864-06D| PIN ESP32 | Descripción |
 |-----------------|-----------|-------------|
 |CS               |GPIO 5     |Chip Select  |
 |RSE              |GPIO 32    |Reset        |
@@ -24,10 +44,196 @@ Todas las veces que se calculan nuevos valores son mostrados por pantalla, junto
 |A                |47Ω -> 3V3 |Anode        |
 |K                |GND        |Cathode      |
 
-|Layout GMG-12864-06D| Description                    |
-|--------------------|--------------------------------|
-|U8G2_R0             |Landscape                       |
-|U8G2_R1             |90 degree clockwise rotatio     |
+Las principales funciones que se han descrito para su utilización consisten en iniciar el dispositivo y actualizar los datos que provienen de la lectura. Por lo que se ha creado una clase `Display` que contiene las funciones necesarias para su utilización. A continuación podemos ver el código que confroma la clase:
+
+```cpp
+
+#define SCL 18
+#define SI 23
+#define CS 5
+#define RS 32
+#define RSE 33
+
+class Display {
+  
+    U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
+    int8_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, heartRateYBias, spo2YBias;
+
+    public:
+        Display(): u8g2(U8G2_R0, SCL, SI, CS, RS, RSE){}
+
+        void init()
+        {
+          // Display initialization
+          u8g2.begin();                         // Inicializa
+          u8g2.setContrast (10);                //contraste
+          u8g2.enableUTF8Print();               //Visuliza caracteres UTF-8
+          u8g2.setFont(u8g2_font_luBS10_tf );
+          //Axis
+          height = this -> height();
+          width = this -> width();
+          
+          this -> xAxisBegin      = width  - 126;
+          this -> xAxisEnd        = width  - width/2;
+          this -> yAxisBegin      = height - 62;
+          this -> yAxisEnd        = height - 4;
+          this -> heartRateYBias  = height/3;
+          this -> spo2YBias       = height - 6;
+        }
+
+        void drawAxis()
+        {
+          u8g2.drawLine(this -> xAxisBegin, this -> yAxisBegin, this -> xAxisBegin, this -> yAxisEnd);                // Y-axis
+          u8g2.drawLine(this -> xAxisBegin, this -> yAxisEnd, this -> xAxisEnd, this -> yAxisEnd);                    // X-axis
+        }
+
+        void drawData(int *heartRateData, int *spo2Data)
+        {
+          for (uint8_t i = 0; i < this -> xAxisEnd; i++)
+          {
+              u8g2.drawPixel(this -> xAxisBegin + i, this -> heartRateYBias - heartRateData[i]);
+              u8g2.drawPixel(this -> xAxisBegin + i, this -> spo2YBias - spo2Data[i]);
+          }
+        }
+
+        void printMesuraments(int bpm_v, int spo2_v)
+        {
+          String bpm = String(bpm_v);
+          String spo = String(spo_v) + " %";
+
+          if ( bpm.length() >= 3)
+          {
+              u8g2.setCursor(this -> xAxisEnd + 20, this -> heartRateYBias );
+          }
+          else {
+              u8g2.setCursor(this -> xAxisEnd + 28, this -> heartRateYBias);
+          }
+          u8g2.print(bpm);
+          u8g2.setCursor(this -> xAxisEnd + 20, this -> heartRateYBias + 16);
+          u8g2.print("BPM");
+          u8g2.setCursor(this -> xAxisEnd + 20, this -> spo2YBias );
+          u8g2.print(spo);
+        }
+
+        void update(int *heartRateData, int *spo2Data, int beatsPerMinute, int spo2Percentage )
+        {
+          this -> drawAxis()
+          this -> drawData(heartRateData, spo2Data);
+          this -> printMeasurements(beatsPerMinute, spo2Percentage);
+        }
+        
+        uint8_t heigth()
+        {
+          return this -> u8g2.getDisplayHeight(); // 64px
+        }
+
+        uint8_t width()
+        {
+          return this -> u8g2.getDisplayWidth(); // 128px
+        }
+};
+
+```
+
+
+#### Página web
+
+Por otra parte, para la visualización de los datos mediante la pagina web se ha utilizado la libreria `WiFi` y `AsyncTCP` para la comunicación con el ESP32 y la libreria `ESPAsyncWebServer` para la creación del servidor web.
+
+Para la creación de la pagina web se ha utilizado el lenguaje HTML, CSS y JavaScript. En ella se pueden visualizar dos gráficas una para la frecuencia cardiaca y otra para la saturación de oxigeno en sangre. Además, de los valores calculados en la lectura de los datos.
+
+Las principales funciones que se describen para esta visualización son la creación del servidor web y la funcion en caso de evento del socket.
+
+```cpp
+#include "WiFi.h"
+#include "SPIFFS.h"
+#include "ESPAsyncWebServer.h"
+
+//Server vars.
+const char* ssid = "*****";
+const char* password =  "******";
+ 
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
+ 
+AsyncWebSocketClient * globalClient = NULL;
+
+//Function declaration
+void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
+void initWiFi();
+void initServer();
+void initWeb();
+void initSPIFSS();
+
+void initWeb()
+{
+  initSPIFSS();
+  initWiFi();
+  initServer();
+}
+
+void loop()
+{
+    if(globalClient != NULL && globalClient->status() == WS_CONNECTED && getNewData())
+    {
+        globalClient -> text(message);
+        message = "";
+    }
+}
+
+void initSPIFFS()
+{
+  if(!SPIFFS.begin()){
+     Serial.println("An Error has occurred while mounting SPIFFS");
+     for(;;);
+  }
+}
+
+void initWiFi()
+{
+  WiFi.begin(ssid, password);
+ 
+  Serial.print("Connecting to WiFi..");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("IP: ");
+  Serial.print(WiFi.localIP());
+  Serial.println("");
+}
+
+void initServer()
+{
+  ws.onEvent(onWsEvent);
+  server.addHandler(&ws);
+ 
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/index.html", "text/html");
+  });
+ 
+  server.begin();
+}
+
+void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
+{
+ 
+  if(type == WS_EVT_CONNECT){
+ 
+    Serial.println("Websocket client connection received");
+    globalClient = client;
+ 
+  } else if(type == WS_EVT_DISCONNECT){
+ 
+    Serial.println("Websocket client connection finished");
+    globalClient = NULL;
+ 
+  }
+}
+```
+
 
 ###### **Código del programa**
 

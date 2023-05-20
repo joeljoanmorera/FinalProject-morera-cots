@@ -8,37 +8,101 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300&display=swap" rel="stylesheet">
         <script src="https://kit.fontawesome.com/22446ba122.js" crossorigin="anonymous"></script>
-        <link rel="stylesheet" href="./css/stylesheet.css">
-        <script src="./js/script.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+        <script type="text/javascript" src="./js/script.js"></script>
+        <style>
+            /* General*/
+            *{
+                margin:0px;
+                padding: 0px;
+            }
+            body{
+                background-color: #252525 ;
+                color: #999999;
+                font: 200 14px 'Poppins', sans-serif;   
+            }
+            h1{
+                color: #ffffff;
+                font-size: 70px;
+            }
+            h2{
+                color: #999;
+                font-size: 18px;
+                font-weight: 300;
+            }
+            p{
+                text-align: justify;
+            }
+
+            #footer{
+                background-color: #1d1d1d;
+                height: 55px;
+                padding-top: 20px;
+                text-align: center;
+            }
+            /* Classes and Identifiers*/
+            #header{
+                height: 85px;
+                padding-top: 20px;
+                text-align: center;
+            }
+            .container{
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                gap: 5px 5px;
+                margin-bottom: 15px;
+                margin-top: 15px;
+            }
+            .card{
+                color: #ffffff;
+                font-size: 40px;
+                line-height: 40px;
+                background-color: #1d1d1d;
+                border-radius: 15px;
+                width: 700px;
+                text-align: center;
+                margin: 20px;
+                padding: 10px 10px;
+            }
+
+        </style>
     </head>
 
     <body>
-        <article>
-
             <!-- Header -->
-            <section id="header">
+            <div id="header">
                 <h1>Heartrate & SPO2</h1>
-            </section>
+            </div>
+            <div class="container">
+                <!-- Heartrate -->
+                <div class="card">
+                    <h2>Frecuencia cardíaca</h2>
+                    <p id="heartrate"> - BPM</p>
+                    <script>
+                        document.getElementById('heartrate').innerHTML = bpm;
+                    </script>
+                    <canvas id="cardiograma-chart" style="width:100%;max-width:400px"></canvas>
+                    <script type="text/javascript" src="./js/heartrate-chart.js"></script>
+                </div>
                 
-            <!-- Heartrate -->
-            <section class="card">
-                <h2>Frecuencia cardíaca</h2>
-                <p id="heartrate">[VALUE] BPM</p>
-                <canvas id="chart"></canvas>
-            </section>
-
-            <!-- SPO2 -->
-            <section class="card">
-                <h2>Saturacion de oxígeno</h2>
-                <p id="spo2">[VALUE] %</p>
-                <canvas id="chart"></canvas>
-            </section>
+                <!-- SPO2 -->
+                <div class="card">
+                    <h2>Saturacion de oxígeno</h2>
+                    <p id="spo2"> - %</p>
+                    <script>
+                        document.getElementById('spo2').innerHTML = spo;
+                    </script>
+                    <canvas id="spo2-chart" style="width:100%;max-width:400px"></canvas>
+                    <script type="text/javascript" src="./js/spo2-chart.js"></script>
+                </div>
             
-        </article>
+            </div>
 
         <!-- Footer -->
-        <footer>
+        <div id="footer">
             <p>© 2023 - Heartrate & SPO2 - Gerard Cots i Escude & Joel J. Morera Bokobo</p>
-        </footer>
+        </div>
     </body>
 </html>
