@@ -213,49 +213,6 @@ class globalValues {
 globalValues globalValuesObject;
 vector<fundamentalsFreqs> freqs;
 
-void IRAM_ATTR isr()//FFT per
-{
-      for (int i = 0; i < SAMPLES; i++)
-      {
-        vReal[i] = irBuffer[i];
-        vImag[i] = 0;
-      }
-
-      //FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING);
-      Serial.println("Computing FFT. Please wait...");
-      FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
-      FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
-      vReal[0] = 0; // Remove the DC component
-      
-      //Normalitzem
-      float max=0;
-      for(int i=0;i<SAMPLES;i++){
-        if(vReal[i]>max){
-          max=vReal[i];
-        }
-      }
-        for(int i=0;i<SAMPLES;i++){
-            vReal[i]=vReal[i]/max;
-        }
-
-      //Print the results of the FFT calculation to the Arduino Serial monitor
-      Serial.println("FFT results:");
-      for (int i = 0; i < SAMPLES / 2; i++)
-      {
-        float frequency = float(i) * SAMPLING_FREQUENCY / SAMPLES;
-        float magnitude = vReal[i];
-        fundamentalsFreqs x;
-        x.amplitude=magnitude;
-        x.freqsHz=frequency;
-        freqs.push_back(x);
-        Serial.print("Frequency: ");
-        Serial.print(frequency);
-        Serial.print(" Hz, Magnitude: ");
-        Serial.println(magnitude);
-      }
-      n++;
-      globalValuesObject.setFreqs(freqs);               
-}
 
   void data(void *pvParameters){
     for(;;){
