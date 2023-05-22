@@ -336,7 +336,7 @@ vector<fundamentalsFreqs> freqs;
       return;
     }
 
-    File file = SPIFFS.open("/coeficients2.txt");
+    File file = SPIFFS.open("/coeficients.txt");
     if(!file){
       Serial.println("Failed to open file for reading");
       return;
