@@ -399,7 +399,7 @@ vector<fundamentalsFreqs> freqs;
 
   
 
-   //attachInterrupt(button1.PIN, isr, FALLING); //attach interrupt to our button pin, to do fft.
+ 
 
   }
 
