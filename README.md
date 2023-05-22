@@ -44,6 +44,86 @@ El display se connecta al ESP32 mediante 7 pines, los cuales se muestran en la s
 |A                |47Ω -> 3V3 |Anode        |
 |K                |GND        |Cathode      |
 
+Pines utilizados:
+
+| Dispositivo | Uso | GPIO |
+|-------------|-----|------|
+| GMG-12864-06D | Chip Select | 5 |
+| GMG-12864-06D | Reset | 32 |
+| GMG-12864-06D | DC | 33 |
+| GMG-12864-06D | SPI Clock | 18 |
+| GMG-12864-06D | SPI Data | 23 |
+| GMG-12864-06D | VCC | 3V3 |
+| GMG-12864-06D | GND | GND |
+| GMG-12864-06D | Anode | 3V3 |
+| GMG-12864-06D | Cathode | GND |
+| MAX30102 | SCL | 22 |
+| MAX30102 | SDA | 21 |
+| MAX30102 | VCC | 3V3 |
+| MAX30102 | GND | GND |
+| Boton BPM | Boton | 25 |
+| Boton BPM | GND | GND |
+| Boton SPO2 | Boton | 26 |
+| Boton SPO2 | GND | GND |
+| Boton Frecuencia | Boton | 27 |
+| Boton Frecuencia | GND | GND |
+
+Diagrama de conexionado:
+
+```mermaid
+  flowchart LR;
+
+  subgraph MAX30102
+    SCL 
+    SDA
+    VCC_ M 
+    GND 
+  end
+
+  subgraph GMG-12864-06D
+    CS 
+    RSE
+    RS
+    SCL
+    SI
+    VCC_G
+    GND
+    A
+    K
+  end
+
+  subgraph BotonBPM
+    Boton
+    GND    
+  end
+
+  subgraph BotonSPO2
+
+  subgraph BotonFrecuencia
+    Boton
+    GND
+  end
+
+  subgraph ESP32
+    32
+    33
+    18
+    23
+    3V3
+    GND
+    22
+    21
+    25
+    26
+    27
+  end
+
+SCL --> 22
+SDA --> 21
+VCC_G --> VCC
+```
+
+
 Las principales funciones que se han descrito para su utilización consisten en iniciar el dispositivo y actualizar los datos que provienen de la lectura. Por lo que se ha creado una clase `Display` que contiene las funciones necesarias para su utilización. A continuación podemos ver el código que confroma la clase:
 
 ```cpp

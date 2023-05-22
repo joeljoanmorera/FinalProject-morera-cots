@@ -19,8 +19,14 @@ uint8_t *button_pin;
 const int BUTTON_NUMBER = 3;
 
 //Server vars.
-const char* ssid = "****";
-const char* password =  "*****";
+const char* ssid = "MiFibra-F392";
+const char* password =  "5QUisHGE";
+
+// Web variables
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
+AsyncWebSocketClient * globalClient = NULL;
+String message = "";
 
 /** Fundamentals frequencies struct
  * 
@@ -318,6 +324,53 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
             this -> print(valueString);
         }
         
+        /** Get max value function
+         * 
+         * @brief This function gets the max value.
+         *
+         * @param dataVector Data to get the max value.
+         * @return Max value.
+         */
+        int8_t getMaxValue(int8_t* dataVector)
+        {
+            int max = 0;
+            for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+            {
+                if (abs(dataVector[i]) > max)
+                {
+                    max = dataVector[i];
+                }
+            }
+            return max;
+        }
+
+        /** Discretize data function
+         * 
+         * @brief This function discretizes the data.
+         *
+         * @param dataVector Data to discretize.
+         * @return Discretized data.
+         */
+        int8_t* discretizeData(int8_t* dataVector, bool choiceBPM)
+        {
+            int8_t* discretizedDataVector = new int8_t[xAxisEnd - xAxisBegin];
+            int8_t max = getMaxValue(dataVector);
+            int8_t yAxisScale;
+            if (choiceBPM){
+                yAxisScale =int(max/(halfHeight - margin));
+            } else {
+                yAxisScale = int(max/(yAxisEnd - margin)); 
+            } 
+
+            if (yAxisScale == 0)yAxisScale = 1;
+
+            for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+            {
+                discretizedDataVector[i] = int(dataVector[i]/yAxisScale);
+            }
+            return discretizedDataVector;
+        }
+
         /** Draw data function
          * 
          * @brief This function draws the data in the display.
@@ -327,18 +380,21 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          */
         void drawData(int8_t* dataVector, bool choiceBPM)
         {
+            int8_t lastHeight = 0;
             if (choiceBPM)
             {
                 for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
                 {
-                    this -> drawPixel(this -> xAxisBegin + i, this -> halfHeight - dataVector[i]);
-                }
+                    this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, halfHeight - dataVector[i]);
+                    lastHeight = halfHeight - dataVector[i];
+                }   
             }
             else
             {
                 for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
                 {
-                    this -> drawPixel(this -> xAxisBegin + i, this -> yAxisEnd - margin - dataVector[i]);
+                    this -> drawLine(xAxisBegin + i, lastHeight, xAxisBegin + i, yAxisEnd - margin - dataVector[i]);
+                    lastHeight = yAxisEnd - margin - dataVector[i];
                 }
             }
         }
@@ -354,10 +410,31 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
         void updateData(int8_t* array, int8_t value, bool choiceBPM)
         {
             this -> drawAxis();
-            this -> drawData(array, choiceBPM);
+            int8_t* discretizedArray = this -> discretizeData(array, choiceBPM);
+            this -> drawData(discretizedArray, choiceBPM);
             this -> printMeasurements(value, choiceBPM);
         }
         
+        /** Get max amplitude function
+         * 
+         * @brief This function gets the max amplitude.
+         *
+         * @param freqs Vector of frequencies.
+         * @return Max amplitude.
+         */
+        int getMaxAmplitude(const vector<fundamentalsFreqs>& freqs)
+        {
+            int max = 0;
+            for (uint8_t i = 0; i < freqs.size(); i++)
+            {
+                if (freqs[i].amplitude > max)
+                {
+                    max = freqs[i].amplitude;
+                }
+            }
+            return max;
+        }
+
         /** Draw frequencies function
          * 
          * @brief This function draws the frequencies in the display.
@@ -366,7 +443,8 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          */
         void drawFreqs(const vector<fundamentalsFreqs>& freqs)
         {
-            int yAxisScale = freqs[0].amplitude/yAxisEnd;
+            int max = getMaxAmplitude(freqs);
+            int yAxisScale = max/yAxisEnd;
             int xAxisScale = (xAxisEnd + margin/2)/freqs.size();
             int yAxisStep = yAxisEnd/freqs.size();
             this -> setFont(u8g2_font_tinyunicode_tf);
@@ -402,33 +480,115 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
         }
 };
 
-// U8g2 Contructor
-Display display(U8G2_R0, SCL, SI, CS, RS, RSE);
+/** Web page class
+ * 
+ * @brief This class is the web page of the device.
+ *
+ */
+// class WebPage{
+//     public:
+//         /** Web page constructor
+//          * 
+//          * @brief This function is the constructor of the web page.
+//          *
+//          */
+//         WebPage(){}
+        
+//         /** Init function
+//          * 
+//          * @brief This function initializes the web page.
+//          *
+//          */
+//         void init()
+//         {
+//             initWiFi();
+//             initServer();
+//         }
 
-// Data
-int8_t* heartRateDataArray;
-int8_t* spo2DataArray;
-int8_t heartRateData, spo2Data;
-int8_t* beatsPerMinute;
-int8_t* spo2Percentage;
-int8_t i_bpm = 0;
-int8_t i_array = 0;
-int8_t spo_v, bpm_v;
-String message = "";
-bool newData = false;
-int t = 0;
+//         /** Init WiFi function
+//          * 
+//          * @brief This function initializes the WiFi.
+//          *
+//          */
+//         void initWiFi()
+//         {
+//             WiFi.begin(ssid, password);
+        
+//             Serial.print("Connecting to WiFi..");
+//             while (WiFi.status() != WL_CONNECTED) {
+//                 delay(1000);
+//                 Serial.print(".");
+//             }
+        
+//             Serial.println("");
+//             Serial.println("IP: ");
+//             Serial.print(WiFi.localIP());
+//             Serial.println("");
+//         }
 
-// Buttons
-Button* buttons; // Array of buttons
-hw_timer_t * timer = NULL;                  //Pointer to timer
+        /** Init server function
+         * 
+         * @brief This function initializes the server.
+         *
+         */
+        // void initServer()
+        // {
+        //     ws.onEvent(onWsEvent);
+        //     server.addHandler(&ws);
+        
+        //     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+        //         request->send(SPIFFS, "/index.html", "text/html");
+        //     });
+        
+        //     server.begin();
+        // }
+
+        // /** On WebSocket event function
+        //  * 
+        //  * @brief This function is the event of the WebSocket.
+        //  *
+        //  * @param server Server of the WebSocket.
+        //  * @param client Client of the WebSocket.
+        //  * @param type Type of the WebSocket.
+        //  * @param arg Argument of the WebSocket.
+        //  * @param data Data of the WebSocket.
+        //  * @param len Length of the WebSocket.
+        //  */
+        // void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
+        // {
+        //     if(type == WS_EVT_CONNECT){
+        
+        //         Serial.println("Websocket client connection received");
+        //         globalClient = client;
+        
+        //     } else if(type == WS_EVT_DISCONNECT){
+        //         Serial.println("Websocket client connection finished");
+        //         globalClient = NULL;
+        
+        //     }
+        // }
+
+        // void sendWsMessage(String message)
+        // {
+        //     if(globalClient != NULL && globalClient->status() == WS_CONNECTED)
+        //     {
+        //         globalClient -> text(message); // '{"tiempo":X, "amplitud":Y, "spo2":Z}'
+        //     }
+        // }
+//};
 
 // Global values
 globalValues globalValuesVar;
 
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
- 
-AsyncWebSocketClient * globalClient = NULL;
+// Web page
+//WebPage webPageVar;
+
+// U8g2
+Display display(U8G2_R0, SCL, SI, CS, RS, RSE);
+
+// Buttons
+Button* buttons; // Array of buttons
+hw_timer_t * timer = NULL;                  //Pointer to timer
 
 // Web functions declaration
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
@@ -461,7 +621,7 @@ void setup()
     }
 
     // Web initialitzation
-    initWeb();
+    //webPageVar.init();
 
     // Data initialization
     fillDataTests();
@@ -488,13 +648,15 @@ void loop()
         if(buttons[2].orden){
             display.updateFreqs(globalValuesVar.getFreqs());
         }        
-    }while(display.nextPage());
+    } while(display.nextPage());
 
-    if(globalClient != NULL && globalClient->status() == WS_CONNECTED)
-    {
-        globalClient -> text(message); // '{"tiempo":X, "amplitud":Y, "spo2":Z}'
-        message = "";
-    }
+    // if(globalClient != NULL && globalClient->status() == WS_CONNECTED)
+    // {
+    //     globalClient -> text(message); // '{"tiempo":X, "amplitud":Y, "spo2":Z}'
+    //     message = "";
+    // }
+
+    //webPageVar.sendWsMessage(message);
 
     delay(700); //Wait 1000ms
 }
@@ -604,27 +766,9 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
 // Data tests
 void getNewData()
 {
-    i_array++;
-    i_bpm++;
-
-    if (i_bpm == 5)
-    {
-        i_bpm = 0;
-    }
-    if (i_array >= display.xAxisEnd)
-    {
-        i_array = 0;
-    }
-
-    heartRateData = heartRateDataArray[i_array];
-    spo2Data = spo2DataArray[i_array];
-
-    bpm_v = beatsPerMinute[i_bpm];
-    spo_v = spo2Percentage[i_bpm];
-
-    message = String(t) + ";" + String(heartRateData) + ";" + String(spo2Data) + ";" 
-            + String(bpm_v) + " BPM" + ";" + String(spo_v) + " %";
-    t++;
+    // message = String(t) + ";" + String(heartRateData) + ";" + String(spo2Data) + ";" 
+    //         + String(bpm_v) + " BPM" + ";" + String(spo_v) + " %";
+    // t++;
 }
 void fillDataTests()
 {   
@@ -642,11 +786,11 @@ void fillDataTests()
         else if (i < display.xAxisEnd/2)
         {
             spo2Data_temp[i] =  j;
-            j++;
+            j+=3;
         }
         else if (i < 3*display.xAxisEnd/4)
         {
-            j--;
+            j-=3;
             spo2Data_temp[i] = j;
         }
         else
@@ -665,17 +809,16 @@ void fillDataTests()
         else if (i < 3*display.xAxisEnd/8)
         {
             heartRateData_temp[i] =  j;
-            j+=2;
+            j+=3;
         }
         else if (i < 5*display.xAxisEnd/8)
         {
-            j-=2;
+            j-=3;
             heartRateData_temp[i] = j;
-            
         }
         else if (i < 3*display.xAxisEnd/4)
         {
-            j+=2;
+            j+=3;
             heartRateData_temp[i] = j;
         }
         else
