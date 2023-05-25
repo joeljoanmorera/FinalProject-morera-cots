@@ -561,11 +561,7 @@ void initWeb();
 void initWiFi();
 void initServer();
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
-void sendWsMessage(String message);
-
-// Data for tests functions declaration
-void fillDataTests();
-void getNewData();  
+void sendWsMessage(String message); 
 
 /** Setup function
  * 
@@ -594,8 +590,21 @@ void setup()
     // Web initialization
     initWeb();
 
-    // Data initialization
-    fillDataTests();
+    // SPIFFS initialization
+    initSPIFFS();
+
+    // Visualitzation setup task initialization ????
+    // Not sure if it is necessary
+
+    // Visualitzation task initialization
+    xTaskCreatePinnedToCore(
+        visualitzation,   /* Task function. */
+        "Visualitzation Task",     /* String with name of task. */
+        10000,            /* Stack size in bytes. */
+        NULL,             /* Parameter passed as input of the task */
+        1,                /* Priority of the task. */
+        NULL,             /* Task handle. */
+        1);               /* Core where the task must run */
 }
 
 /** Loop function
@@ -611,7 +620,21 @@ void setup()
  * @see setup().
  * 
  */
-void loop() 
+void loop()
+{
+
+}
+
+/** Visualitzation function
+ * 
+ * @brief This function updates the data in the display and sends the data to the web.
+ *  
+ * @return void.
+ *  
+ * @details This function updates the data in the display and sends the data to the web. It works continuously in the core 1.
+ * 
+ */
+void visualitzation(void * parameter) 
 {
     display.firstPage(); // First page of the display
     do {
@@ -631,7 +654,7 @@ void loop()
 
     sendWsMessage(globalValuesVar.getJson());
     
-    delay(700); //Wait 1000ms
+    delay(750); //Wait 750ms
 }
 
 // Button functions
@@ -749,7 +772,6 @@ void initSPIFFS()
  */
 void initWeb()
 {
-  initSPIFFS();
   initWiFi();
   initServer();
 }
@@ -855,114 +877,4 @@ void sendWsMessage(String message)
         globalClient -> text(message); // '{"tiempo":X, "amplitud":Y, "spo2":Z}'
         message = "";
     }
-}
-
-// Data tests
-/** Data tests initialization function
- * 
- * @brief This function initializes the data tests.
- *  
- * @return void.
- *  
- * @details This function initializes the data tests.
- *  
- * @note This function is called once.
- * 
- */
-void fillDataTests()
-{   
-    int32_t* heartRateData_temp = new int32_t[display.xAxisEnd - display.xAxisBegin];
-    int32_t* spo2Data_temp = new int32_t[display.xAxisEnd - display.xAxisBegin];
-
-    int j = 0;
-    for (uint8_t i = 0; i < display.xAxisEnd; i++)
-    {
-        // Little mountain in the middle with a value of yAxisEnd
-        if (i < display.xAxisEnd/4)
-        {
-            spo2Data_temp[i] = 0;
-        }
-        else if (i < display.xAxisEnd/2)
-        {
-            spo2Data_temp[i] =  j;
-            j+=3;
-        }
-        else if (i < 3*display.xAxisEnd/4)
-        {
-            j-=3;
-            spo2Data_temp[i] = j;
-        }
-        else
-        {
-            spo2Data_temp[i] = 0;
-        }
-    }
-
-    for (uint8_t i = 0; i < display.xAxisEnd; i++)
-    {
-        // Little mountain in the middle with a value of yAxisEnd
-        if (i < display.xAxisEnd/4)
-        {
-            heartRateData_temp[i] = 0;
-        }
-        else if (i < 3*display.xAxisEnd/8)
-        {
-            heartRateData_temp[i] =  j;
-            j+=3;
-        }
-        else if (i < 5*display.xAxisEnd/8)
-        {
-            j-=3;
-            heartRateData_temp[i] = j;
-        }
-        else if (i < 3*display.xAxisEnd/4)
-        {
-            j+=3;
-            heartRateData_temp[i] = j;
-        }
-        else
-        {
-            heartRateData_temp[i] = 0;
-        }
-    }
-
-    int32_t *beatsPerMinute_temp = new int32_t[5];
-    int32_t *spo2Percentage_temp = new int32_t[5];
-
-    beatsPerMinute_temp[0] = 60;
-    beatsPerMinute_temp[1] = 70;
-    beatsPerMinute_temp[2] = 80;
-    beatsPerMinute_temp[3] = 90;
-    beatsPerMinute_temp[4] = 100;
-
-
-    spo2Percentage_temp[0] = 90;
-    spo2Percentage_temp[1] = 91;
-    spo2Percentage_temp[2] = 92;
-    spo2Percentage_temp[3] = 93;
-    spo2Percentage_temp[4] = 94;
-
-
-    vector<fundamentalsFreqs> freqs_temp(7);
-
-    freqs_temp[0].freqsHz = "100 Hz";
-    freqs_temp[0].amplitude = 640;
-    freqs_temp[1].freqsHz = "500 Hz";
-    freqs_temp[1].amplitude = 240;
-    freqs_temp[2].freqsHz = "1 kHz";
-    freqs_temp[2].amplitude = 440;
-    freqs_temp[3].freqsHz = "10 kHz";
-    freqs_temp[3].amplitude = 129;
-    freqs_temp[4].freqsHz = "20 kHz";
-    freqs_temp[4].amplitude = 100;
-    freqs_temp[5].freqsHz = "30 kHz";
-    freqs_temp[5].amplitude = 50;
-    freqs_temp[6].freqsHz = "40 kHz";
-    freqs_temp[6].amplitude = 220;
-
-    globalValuesVar.setHeartRateDataArray(heartRateData_temp);
-    globalValuesVar.setSpo2DataArray(spo2Data_temp);
-    globalValuesVar.setBeatsPerMinute(beatsPerMinute_temp[0]);
-    globalValuesVar.setSpo2Percentage(spo2Percentage_temp[0]);
-    globalValuesVar.setFreqs(freqs_temp);
 }
