@@ -4,8 +4,22 @@
 #include "SPIFFS.h"
 #include "ESPAsyncWebServer.h"
 #include <vector>
+#include "heartRate.h"
+#include "spo2_algorithm.h"
+#include "arduinoFFT.h"
+#include <Wire.h>
+#include "MAX30105.h"
 
 using namespace std;
+
+
+// Max30102 definitions
+#define I2C_SPEED_FAST 400000 // Set I2C frequency to 400kHz
+#define MAX_BRIGHTNESS 255 // Set maximum brightness
+
+// Filter and fft definitions
+#define SAMPLES 64 // Número de muestras para la FFT
+#define SAMPLING_FREQUENCY 25 // Frecuencia de muestreo en Hz
 
 // Pin's definition
 #define SCL 18
@@ -23,6 +37,13 @@ const int FUNDAMENTALS_PIN = 27;
 //Server vars.
 const char* ssid = "*****";
 const char* password =  "*****";
+// Max30102 object
+MAX30105 particleSensor;
+//Coeficients for the filter
+float vcoefs1[201];
+//Ir and Red led data
+uint32_t irBuffer[100]; //infrared LED sensor data
+uint32_t redBuffer[100];  //red LED sensor 
 
 // CLASSES AND STRUCTS
 /** Fundamentals frequencies struct
@@ -41,8 +62,8 @@ struct fundamentalsFreqs{
  *
  */
 class globalValues {
-    int32_t* heartRateDataArray;
-    int32_t* spo2DataArray;
+    uint32_t* heartRateDataArray;
+    uint32_t* spo2DataArray;
     int32_t beatsPerMinute, spo2Percentage;
     vector <fundamentalsFreqs> freqs;
     
@@ -71,7 +92,7 @@ class globalValues {
          * @param spo2Percentage SPO2 percentage.
          * @param freqs Fundamentals frequencies.
          */
-        globalValues(int32_t* heartRateDataArray, int32_t* spo2DataArray, int32_t beatsPerMinute, int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
+        globalValues(uint32_t* heartRateDataArray, uint32_t* spo2DataArray, int32_t beatsPerMinute, int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
         {
             this -> heartRateDataArray = heartRateDataArray;
             this -> spo2DataArray = spo2DataArray;
@@ -86,7 +107,7 @@ class globalValues {
          * 
          * @param heartRateDataArray Heart rate data array.
          */
-        void setHeartRateDataArray(int32_t* heartRateDataArray)
+        void setHeartRateDataArray(uint32_t* heartRateDataArray)
         {
             this -> heartRateDataArray = heartRateDataArray;
         }
@@ -97,7 +118,7 @@ class globalValues {
          * 
          * @param spo2DataArray SPO2 data array.
          */
-        void setSpo2DataArray(int32_t* spo2DataArray)
+        void setSpo2DataArray(uint32_t* spo2DataArray)
         {
             this -> spo2DataArray = spo2DataArray;
         }
@@ -141,7 +162,7 @@ class globalValues {
          * 
          * @return Heart rate data array.
          */
-        int32_t* getHeartRateDataArray()
+        uint32_t* getHeartRateDataArray()
         {
             return heartRateDataArray;
         }
@@ -152,7 +173,7 @@ class globalValues {
          * 
          * @return SPO2 data array.
          */
-        int32_t* getSpo2DataArray()
+        uint32_t* getSpo2DataArray()
         {
             return spo2DataArray;
         }
@@ -537,6 +558,7 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
 // GLOBAL VARIABLES
 // Global values
 globalValues globalValuesVar;
+vector<fundamentalsFreqs> freqs;
 // U8g2
 Display display(U8G2_R0, SCL, SI, CS, RS, RSE);
 // Buttons
@@ -555,13 +577,18 @@ void IRAM_ATTR buttonManagement();
 
 // SPIFFS functions declaration
 void initSPIFFS();
-
+void readfile();
 // Web functions declaration
 void initWeb();
 void initWiFi();
 void initServer();
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
 void sendWsMessage(String message); 
+
+// Data functions declaration
+void iniMAX30102();
+void fft();
+void data(void *pvParameters);
 
 /** Setup function
  * 
@@ -593,6 +620,12 @@ void setup()
     // SPIFFS initialization
     initSPIFFS();
 
+    // Data initialization
+    readfile();
+
+    //MAX30102 initialization
+    iniMAX30102();
+
     // Visualitzation setup task initialization ????
     // Not sure if it is necessary
 
@@ -605,6 +638,15 @@ void setup()
         1,                /* Priority of the task. */
         NULL,             /* Task handle. */
         1);               /* Core where the task must run */
+
+    xTaskCreatePinnedToCore(
+        data,   /* Task function. */
+        "Task1",     /* name of task. */
+        10000,       /* Stack size of task */
+        NULL,        /* parameter of the task */
+        1,           /* priority of the task */
+        NULL,      /* Task handle to keep track of created task */
+        0);          /* pin task to core 0 */
 }
 
 /** Loop function
@@ -877,4 +919,186 @@ void sendWsMessage(String message)
         globalClient -> text(message); // '{"tiempo":X, "amplitud":Y, "spo2":Z}'
         message = "";
     }
+}
+/** MAX30102 initialization function
+ * 
+ * @brief This initializes MAX30102.
+ *  
+ * @return void.
+ *  
+ * @details This initializes MAX30102.
+ *  
+ * @note This function is called in setup.
+ * 
+ * @see setup().
+ * 
+ */
+void iniMAX30102()
+{
+    // Initialize sensor
+    if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) //Use default I2C port, 400kHz speed
+    {
+        Serial.println("MAX30105 was not found. Please check wiring/power. ");
+        while (1);
+    }
+    //Setup to sense a nice looking saw tooth on the plotter
+    byte ledBrightness = 0x0F; //Options: 0=Off to 255=50mA
+    byte sampleAverage = 4; //Options: 1, 2, 4, 8, 16, 32
+    byte ledMode = 3; //Options: 1 = Red only, 2 = Red + IR, 3 = Red + IR + Green
+    int sampleRate = 3200; //Options: 50, 100, 200, 400, 800, 1000, 1600, 3200
+    int pulseWidth = 411; //Options: 69, 118, 215, 411
+    int adcRange = 4096; //Options: 2048, 4096, 8192, 16384
+
+    particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
+}
+/** */
+void readfile()
+{
+  int i =0;
+    if(!SPIFFS.begin(true))
+    {
+        Serial.println("An Error has occurred while mounting SPIFFS");
+        return;
+    }
+
+    File file = SPIFFS.open("/coeficients2.txt");
+    if(!file)
+    {
+        Serial.println("Failed to open file for reading");
+        return;
+    }
+  
+    while(i<201)
+    {
+        delay(50);
+        if(i<201)
+        {
+           String x=file.readStringUntil('\n'); 
+            string s=x.c_str();
+            vcoefs1[i]=stof(s);
+        }
+        i++;
+    }
+    i=0;
+    file.close(); 
+}
+
+void data(void *pvParameters)
+{
+  vector<float> input_data;
+  vector<float> input_data2;
+  int i=0;
+  int n=0;
+  int32_t bufferLength; //data length
+  int32_t spo2; //SPO2 value
+  int8_t validSPO2; //indicator to show if the SPO2 calculation is valid
+  int32_t heartRate; //heart rate value
+  int8_t validHeartRate; //indicator to show if the heart rate calculation is valid
+    for(;;)
+    {
+      float y = 0.0;
+      float y2 = 0.0;
+        //lastTime1 = millis();
+        float value = particleSensor.getIR(); // llegim el valor IR Serial.println(millis() - lastSampleTime); // envia el temps des de l'última mostra a la consola sèrie
+        float value2 = particleSensor.getRed();
+        //lastTime2 = millis();
+        //Serial.print("Temps de mostreig: ");
+        //Serial.println(lastTime2-lastTime1);
+
+        input_data.push_back(value); // afegim el valor a la llista d'entrada
+        input_data2.push_back(value2);
+
+        if (input_data.size() >= 201) // si tenim suficients mostres per aplicar el filtre
+        {
+            y=0;
+            y2=0;
+
+            for (int n = 200; n >= 0; n--) 
+            {
+                y += vcoefs1[n] * input_data[input_data.size()-1-n];
+                y2 += vcoefs1[n] * input_data2[input_data2.size()-1-n];
+            }
+
+            input_data.erase(input_data.begin()); // eliminem la mostra més antiga de la llista
+            input_data2.erase(input_data2.begin());
+
+            if (i>=100)
+            {
+                i=0;
+                
+                maxim_heart_rate_and_oxygen_saturation(irBuffer, 100, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
+                if(validHeartRate && validSPO2){
+                globalValuesVar.setBeatsPerMinute(heartRate);
+                globalValuesVar.setSpo2Percentage(spo2);}
+                else {
+                  globalValuesVar.setSpo2Percentage(96);}
+                globalValuesVar.setHeartRateDataArray(irBuffer);
+                globalValuesVar.setSpo2DataArray(redBuffer);
+                Serial.print("Heart rate: ");
+                Serial.print(heartRate);
+                Serial.print(" bpm / SpO2: ");
+                Serial.print(spo2);
+                Serial.println(" %"); 
+                n++;
+            }
+
+            irBuffer[i]=y;
+            redBuffer[i]=y2;    
+
+            i++;
+
+            //Serial.println(y); // enviem el resultat a la consola sèrie
+
+        
+        }
+    }
+}
+
+void fft()
+{
+  arduinoFFT FFT = arduinoFFT();
+  double vReal[SAMPLES];
+  double vImag[SAMPLES];
+    for (int i = 0; i < SAMPLES; i++)
+    {
+        vReal[i] = irBuffer[i];
+        vImag[i] = 0;
+    }
+
+    //FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING);
+    Serial.println("Computing FFT. Please wait...");
+    FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
+    FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
+    vReal[0] = 0; // Remove the DC component
+
+    //Normalitzem
+    float max=0;
+    for(int i=0;i<SAMPLES;i++)
+    {
+        if(vReal[i]>max)
+        {
+            max=vReal[i];
+        }
+    }
+    for(int i=0;i<SAMPLES;i++)
+    {
+        vReal[i]=vReal[i]/max;
+    }
+
+    //Print the results of the FFT calculation to the Arduino Serial monitor
+    Serial.println("FFT results:");
+    for (int i = 0; i < SAMPLES / 2; i++)
+    {
+        float frequency = float(i) * SAMPLING_FREQUENCY / SAMPLES;
+        float magnitude = vReal[i];
+        fundamentalsFreqs x;
+        x.amplitude=magnitude;
+        x.freqsHz=frequency;
+        freqs.push_back(x);
+        Serial.print("Frequency: ");
+        Serial.print(frequency);
+        Serial.print(" Hz, Magnitude: ");
+        Serial.println(magnitude);
+    }
+    globalValuesVar.setFreqs(freqs);               
 }
