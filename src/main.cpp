@@ -14,20 +14,17 @@ using namespace std;
 #define RS 32
 #define RSE 33
 
+// CONSTANTS
 //Pin distribution variables
-uint8_t *button_pin;
 const int BUTTON_NUMBER = 3;
-
+const int BPM_PIN = 25;
+const int SPO2_PIN = 26;
+const int FUNDAMENTALS_PIN = 27;
 //Server vars.
-const char* ssid = "MiFibra-F392";
-const char* password =  "5QUisHGE";
+const char* ssid = "*****";
+const char* password =  "*****";
 
-// Web variables
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
-AsyncWebSocketClient * globalClient = NULL;
-String message = "";
-
+// CLASSES AND STRUCTS
 /** Fundamentals frequencies struct
  * 
  * @brief This struct is the fundamentals frequencies of the device.
@@ -44,9 +41,9 @@ struct fundamentalsFreqs{
  *
  */
 class globalValues {
-    int8_t* heartRateDataArray;
-    int8_t* spo2DataArray;
-    int8_t beatsPerMinute, spo2Percentage;
+    int32_t* heartRateDataArray;
+    int32_t* spo2DataArray;
+    int32_t beatsPerMinute, spo2Percentage;
     vector <fundamentalsFreqs> freqs;
     
     public:
@@ -74,7 +71,7 @@ class globalValues {
          * @param spo2Percentage SPO2 percentage.
          * @param freqs Fundamentals frequencies.
          */
-        globalValues(int8_t* heartRateDataArray, int8_t* spo2DataArray, int8_t beatsPerMinute, int8_t spo2Percentage, vector<fundamentalsFreqs> freqs)
+        globalValues(int32_t* heartRateDataArray, int32_t* spo2DataArray, int32_t beatsPerMinute, int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
         {
             this -> heartRateDataArray = heartRateDataArray;
             this -> spo2DataArray = spo2DataArray;
@@ -89,7 +86,7 @@ class globalValues {
          * 
          * @param heartRateDataArray Heart rate data array.
          */
-        void setHeartRateDataArray(int8_t* heartRateDataArray)
+        void setHeartRateDataArray(int32_t* heartRateDataArray)
         {
             this -> heartRateDataArray = heartRateDataArray;
         }
@@ -100,7 +97,7 @@ class globalValues {
          * 
          * @param spo2DataArray SPO2 data array.
          */
-        void setSpo2DataArray(int8_t* spo2DataArray)
+        void setSpo2DataArray(int32_t* spo2DataArray)
         {
             this -> spo2DataArray = spo2DataArray;
         }
@@ -111,7 +108,7 @@ class globalValues {
          * 
          * @param beatsPerMinute Beats per minute.
          */
-        void setBeatsPerMinute(int8_t beatsPerMinute)
+        void setBeatsPerMinute(int32_t beatsPerMinute)
         {
             this -> beatsPerMinute = beatsPerMinute;
         }
@@ -122,7 +119,7 @@ class globalValues {
          * 
          * @param spo2Percentage SPO2 percentage.
          */
-        void setSpo2Percentage(int8_t spo2Percentage)
+        void setSpo2Percentage(int32_t spo2Percentage)
         {
             this -> spo2Percentage = spo2Percentage;
         }
@@ -144,7 +141,7 @@ class globalValues {
          * 
          * @return Heart rate data array.
          */
-        int8_t* getHeartRateDataArray()
+        int32_t* getHeartRateDataArray()
         {
             return heartRateDataArray;
         }
@@ -155,7 +152,7 @@ class globalValues {
          * 
          * @return SPO2 data array.
          */
-        int8_t* getSpo2DataArray()
+        int32_t* getSpo2DataArray()
         {
             return spo2DataArray;
         }
@@ -166,7 +163,7 @@ class globalValues {
          * 
          * @return Beats per minute.
          */
-        int8_t getBeatsPerMinute()
+        int32_t getBeatsPerMinute()
         {
             return beatsPerMinute;
         }
@@ -177,7 +174,7 @@ class globalValues {
          * 
          * @return SPO2 percentage.
          */
-        int8_t getSpo2Percentage()
+        int32_t getSpo2Percentage()
         {
             return spo2Percentage;
         }
@@ -192,6 +189,42 @@ class globalValues {
         {
             return freqs;
         }
+
+        /** Get JSON function
+         * 
+         * @brief This function gets the JSON of the global values.
+         * 
+         * @return JSON of the global values.
+         */
+        String getJson()
+        {
+            String json = "{";
+            json += "\"heartRateDataArray\": [";
+            for(int i = 0; i < 100; i++)
+            {
+                json += String(heartRateDataArray[i]);
+                if(i != 99)
+                {
+                    json += ",";
+                }
+            }
+            json += "],";
+            json += "\"spo2DataArray\": [";
+            for(int i = 0; i < 100; i++)
+            {
+                json += String(spo2DataArray[i]);
+                if(i != 99)
+                {
+                    json += ",";
+                }
+            }
+            json += "],";
+            json += "\"beatsPerMinute\": " + String(beatsPerMinute) + ",";
+            json += "\"spo2Percentage\": " + String(spo2Percentage) + ",";
+            json += "]";
+            json += "}";
+            return json;
+        }
 };
 
 /** Button class
@@ -199,20 +232,41 @@ class globalValues {
  * @brief This class is the button of the device.
  *
  */
-class Button{                                                 //Button object definition
+class Button{
   public:
-    uint8_t pin;                                              //Button pin
-    bool val_act, val_ant, cambioact, cambioanterior, orden;  //Filter variables
-    
+    //VARS
+    uint8_t pin;                                              
+    bool val_act, val_ant, cambioact, cambioanterior, orden;  
     //API
+
+    /** Button default constructor
+     * 
+     * @brief This function is the constructor of the button.
+     *
+     */
     Button(){}
-    Button(uint8_t PPIN)                                      //Constructor by PIN
+
+    /** Button constructor
+     * 
+     * @brief This function is the constructor of the button.
+     *
+     * @param PPIN Pin of the button.
+     */
+    Button(uint8_t PPIN)                                      
     {
       pin = PPIN;
       val_ant = 1;
       orden = 0;
     }
-    Button& operator =(const Button& B)                             //LED Operator 
+
+    /** Button = operator
+     * 
+     * @brief This function is the = operator of the button.
+     *
+     * @param B Button.
+     * @return Button.
+     */
+    Button& operator =(const Button& B)                             
     {
       if (this != &B)
       {
@@ -302,7 +356,7 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param value Value to print.
          * @param choiceBPM Choice of the measurement to print.
          */
-        void printMeasurements(int8_t value, bool choiceBPM)
+        void printMeasurements(int32_t value, bool choiceBPM)
         {
             this -> setFont(u8g2_font_luBS10_tf);
             String valueString = String(value);
@@ -331,7 +385,7 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param dataVector Data to get the max value.
          * @return Max value.
          */
-        int8_t getMaxValue(int8_t* dataVector)
+        int32_t getMaxValue(int32_t* dataVector)
         {
             int max = 0;
             for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
@@ -351,11 +405,11 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param dataVector Data to discretize.
          * @return Discretized data.
          */
-        int8_t* discretizeData(int8_t* dataVector, bool choiceBPM)
+        int32_t* discretizeData(int32_t* dataVector, bool choiceBPM)
         {
-            int8_t* discretizedDataVector = new int8_t[xAxisEnd - xAxisBegin];
-            int8_t max = getMaxValue(dataVector);
-            int8_t yAxisScale;
+            int32_t* discretizedDataVector = new int32_t[xAxisEnd - xAxisBegin];
+            int32_t max = getMaxValue(dataVector);
+            int32_t yAxisScale;
             if (choiceBPM){
                 yAxisScale =int(max/(halfHeight - margin));
             } else {
@@ -378,7 +432,7 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param dataVector Data to draw.
          * @param choiceBPM Choice of the data to draw.
          */
-        void drawData(int8_t* dataVector, bool choiceBPM)
+        void drawData(int32_t* dataVector, bool choiceBPM)
         {
             int8_t lastHeight = 0;
             if (choiceBPM)
@@ -407,10 +461,10 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param value Value to update.
          * @param choiceBPM Choice of the data to update.
          */
-        void updateData(int8_t* array, int8_t value, bool choiceBPM)
+        void updateData(int32_t* array, int32_t value, bool choiceBPM)
         {
             this -> drawAxis();
-            int8_t* discretizedArray = this -> discretizeData(array, choiceBPM);
+            int32_t* discretizedArray = this -> discretizeData(array, choiceBPM);
             this -> drawData(discretizedArray, choiceBPM);
             this -> printMeasurements(value, choiceBPM);
         }
@@ -480,131 +534,52 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
         }
 };
 
-/** Web page class
- * 
- * @brief This class is the web page of the device.
- *
- */
-// class WebPage{
-//     public:
-//         /** Web page constructor
-//          * 
-//          * @brief This function is the constructor of the web page.
-//          *
-//          */
-//         WebPage(){}
-        
-//         /** Init function
-//          * 
-//          * @brief This function initializes the web page.
-//          *
-//          */
-//         void init()
-//         {
-//             initWiFi();
-//             initServer();
-//         }
-
-//         /** Init WiFi function
-//          * 
-//          * @brief This function initializes the WiFi.
-//          *
-//          */
-//         void initWiFi()
-//         {
-//             WiFi.begin(ssid, password);
-        
-//             Serial.print("Connecting to WiFi..");
-//             while (WiFi.status() != WL_CONNECTED) {
-//                 delay(1000);
-//                 Serial.print(".");
-//             }
-        
-//             Serial.println("");
-//             Serial.println("IP: ");
-//             Serial.print(WiFi.localIP());
-//             Serial.println("");
-//         }
-
-        /** Init server function
-         * 
-         * @brief This function initializes the server.
-         *
-         */
-        // void initServer()
-        // {
-        //     ws.onEvent(onWsEvent);
-        //     server.addHandler(&ws);
-        
-        //     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-        //         request->send(SPIFFS, "/index.html", "text/html");
-        //     });
-        
-        //     server.begin();
-        // }
-
-        // /** On WebSocket event function
-        //  * 
-        //  * @brief This function is the event of the WebSocket.
-        //  *
-        //  * @param server Server of the WebSocket.
-        //  * @param client Client of the WebSocket.
-        //  * @param type Type of the WebSocket.
-        //  * @param arg Argument of the WebSocket.
-        //  * @param data Data of the WebSocket.
-        //  * @param len Length of the WebSocket.
-        //  */
-        // void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
-        // {
-        //     if(type == WS_EVT_CONNECT){
-        
-        //         Serial.println("Websocket client connection received");
-        //         globalClient = client;
-        
-        //     } else if(type == WS_EVT_DISCONNECT){
-        //         Serial.println("Websocket client connection finished");
-        //         globalClient = NULL;
-        
-        //     }
-        // }
-
-        // void sendWsMessage(String message)
-        // {
-        //     if(globalClient != NULL && globalClient->status() == WS_CONNECTED)
-        //     {
-        //         globalClient -> text(message); // '{"tiempo":X, "amplitud":Y, "spo2":Z}'
-        //     }
-        // }
-//};
-
+// GLOBAL VARIABLES
 // Global values
 globalValues globalValuesVar;
-
-// Web page
-//WebPage webPageVar;
-
 // U8g2
 Display display(U8G2_R0, SCL, SI, CS, RS, RSE);
-
 // Buttons
-Button* buttons; // Array of buttons
-hw_timer_t * timer = NULL;                  //Pointer to timer
+Button* buttons;                            
+hw_timer_t * timer = NULL;                  
 
-// Web functions declaration
-void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
-void initWiFi();
-void initServer();
-void initSPIFFS();
-void initWeb();
-
-// Data for tests functions declaration
-void fillDataTests();
-void getNewData();
+// Web variables
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
+AsyncWebSocketClient * globalClient = NULL;
+String message = "";
 
 // Button functions declaration
 void initButtons();
-void IRAM_ATTR buttonManagement();   
+void IRAM_ATTR buttonManagement(); 
 
+// SPIFFS functions declaration
+void initSPIFFS();
+
+// Web functions declaration
+void initWeb();
+void initWiFi();
+void initServer();
+void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
+void sendWsMessage(String message);
+
+// Data for tests functions declaration
+void fillDataTests();
+void getNewData();  
+
+/** Setup function
+ * 
+ * @brief This function is the setup of the program.
+ *  
+ * @return void.
+ *  
+ * @details This function initializes the serial communication, the display, the buttons, the web, the data and the timer.
+ *  
+ * @note This function is called once.
+ * 
+ * @see loop().
+ * 
+ */
 void setup() 
 {
     // Serial initialization
@@ -615,16 +590,88 @@ void setup()
     
     //Initzialitaion of buttons
     initButtons();
+
+    // Web initialization
+    initWeb();
+
+    // Data initialization
+    fillDataTests();
+}
+
+/** Loop function
+ * 
+ * @brief This function is the loop of the program.
+ *  
+ * @return void.
+ *  
+ * @details This function updates the data in the display.
+ *  
+ * @note This function is called continuously.
+ * 
+ * @see setup().
+ * 
+ */
+void loop() 
+{
+    display.firstPage(); // First page of the display
+    do {
+        if (buttons[0].orden){
+            display.updateData(globalValuesVar.getHeartRateDataArray(), globalValuesVar.getBeatsPerMinute(), true);
+            Serial.println("Heart rate");
+        }
+        if(buttons[1].orden){
+            display.updateData(globalValuesVar.getSpo2DataArray(), globalValuesVar.getSpo2Percentage(), false);
+            Serial.println("SPO2");
+        }
+        if(buttons[2].orden){
+            display.updateFreqs(globalValuesVar.getFreqs());
+            Serial.println("Freqs");
+        }        
+    } while(display.nextPage());
+
+    sendWsMessage(globalValuesVar.getJson());
+    
+    delay(700); //Wait 1000ms
+}
+
+// Button functions
+/** Init buttons function
+ * 
+ * @brief This function initializes the buttons.
+ *  
+ * @return void.
+ *  
+ * @details This function initializes the buttons' pins, the buttons' definition and the timer.
+ *  
+ * @note This function is called once.
+ * 
+ * @see setup().
+ * 
+ */
+void initButtons()
+{
+    //Buttons pins
+    uint8_t *button_pin = new uint8_t [BUTTON_NUMBER];
+    button_pin[0] = BPM_PIN;                                // Heart rate button
+    button_pin[1] = SPO2_PIN;                               // SPO2 button
+    button_pin[2] = FUNDAMENTALS_PIN;                       // Freqs button
+
+    //Buttons definition
+    Button *buttons_temp = new Button[BUTTON_NUMBER];
+    for(uint8_t i = 0; i < BUTTON_NUMBER; i++)
+    {
+        buttons_temp[i] = Button(button_pin[i]);
+    }
+    buttons = buttons_temp;
+
+    //Buttons'pins initialization
     for(uint8_t i = 0; i < BUTTON_NUMBER; i++)
     {
         pinMode(button_pin[i], INPUT_PULLUP);
     }
 
-    // Web initialitzation
-    //webPageVar.init();
-
-    // Data initialization
-    fillDataTests();
+    // Default order
+    buttons[0].orden = 1;
 
     // Timer initialization
     timer = timerBegin(0, 80, true);                            //Initiation of timer
@@ -632,57 +679,20 @@ void setup()
     timerAlarmWrite(timer, 50000, true);                        //Specify time betweem interrupts
     timerAlarmEnable(timer);                                    //Enable timer
 }
-
-void loop() 
-{
-    display.firstPage(); // First page
-    getNewData();
-    
-    do {
-        if (buttons[0].orden){
-            display.updateData(globalValuesVar.getHeartRateDataArray(), globalValuesVar.getBeatsPerMinute(), true);
-        }
-        if(buttons[1].orden){
-            display.updateData(globalValuesVar.getSpo2DataArray(), globalValuesVar.getSpo2Percentage(), false);
-        }
-        if(buttons[2].orden){
-            display.updateFreqs(globalValuesVar.getFreqs());
-        }        
-    } while(display.nextPage());
-
-    // if(globalClient != NULL && globalClient->status() == WS_CONNECTED)
-    // {
-    //     globalClient -> text(message); // '{"tiempo":X, "amplitud":Y, "spo2":Z}'
-    //     message = "";
-    // }
-
-    //webPageVar.sendWsMessage(message);
-
-    delay(700); //Wait 1000ms
-}
-
-// Button functions
-    // Initzialization buttons
-void initButtons()
-{
-    //Buttons pins
-    uint8_t *button_pin_temp = new uint8_t [BUTTON_NUMBER];
-    button_pin_temp[0] = 25;                                // HeartRate button
-    button_pin_temp[1] = 26;                                // SPO2 button
-    button_pin_temp[2] = 27;                                // Freqs button
-
-    button_pin = button_pin_temp;
-
-    //Buttons declaration
-    Button *buttons_temp = new Button[BUTTON_NUMBER];
-    for(uint8_t i = 0; i < BUTTON_NUMBER; i++)
-    {
-        buttons_temp[i] = Button(button_pin[i]);
-    }
-    buttons = buttons_temp;
-    buttons[0].orden = 1;
-}
-    // Timer function for button management
+/** Button management function
+ * 
+ * @brief This function manages the buttons.
+ *  
+ * @return void.
+ *  
+ * @details This function reads the buttons' values and changes the order of the buttons.
+ *  
+ * @note This function is called when the timer is activated. 
+ *       Therefore, it is called when an interrupt is generated.
+ * 
+ * @see initButtons().
+ * 
+ */
 void IRAM_ATTR buttonManagement()
 { 
     for(uint8_t i = 0; i < BUTTON_NUMBER; i++)
@@ -704,7 +714,17 @@ void IRAM_ATTR buttonManagement()
     }
 }
 
-// SPIFFS functions
+/** SPIFFS initialization function
+ * 
+ * @brief This function initializes the SPIFFS.
+ *  
+ * @return void.
+ *  
+ * @details This function initializes the SPIFFS.
+ *  
+ * @note This function is called once.
+ * 
+ */
 void initSPIFFS()
 {
   if(!SPIFFS.begin()){
@@ -714,6 +734,19 @@ void initSPIFFS()
 }
 
 // Web functions
+/** Web initialization function
+ * 
+ * @brief This function initializes the web.
+ *  
+ * @return void.
+ *  
+ * @details This function initializes the SPIFFS, the WiFi and the server.
+ *  
+ * @note This function is called once.
+ * 
+ * @see initSPIFFS(), initWiFi(), initServer().
+ * 
+ */
 void initWeb()
 {
   initSPIFFS();
@@ -721,6 +754,19 @@ void initWeb()
   initServer();
 }
 
+/** WiFi initialization function
+ * 
+ * @brief This function initializes the WiFi.
+ *  
+ * @return void.
+ *  
+ * @details This function initializes the WiFi.
+ *  
+ * @note This function is called once.
+ * 
+ * @see initWeb().
+ * 
+ */
 void initWiFi()
 {
   WiFi.begin(ssid, password);
@@ -737,6 +783,19 @@ void initWiFi()
   Serial.println("");
 }
 
+/** Server initialization function
+ * 
+ * @brief This function initializes the server.
+ *  
+ * @return void.
+ *  
+ * @details This function initializes the server.
+ *  
+ * @note This function is called once.
+ * 
+ * @see initWeb().
+ * 
+ */
 void initServer()
 {
   ws.onEvent(onWsEvent);
@@ -749,31 +808,71 @@ void initServer()
   server.begin();
 }
 
+/** Websocket event function
+ * 
+ * @brief This function manages the websocket events.
+ *  
+ * @return void.
+ *  
+ * @details This function manages the websocket events.
+ *  
+ * @note This function is called when a websocket event is generated.
+ * 
+ * @see initServer().
+ * 
+ */
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
 {
-  if(type == WS_EVT_CONNECT){
- 
+  if(type == WS_EVT_CONNECT)
+  {
     Serial.println("Websocket client connection received");
     globalClient = client;
- 
-  } else if(type == WS_EVT_DISCONNECT){
+  }
+  else if(type == WS_EVT_DISCONNECT)
+  {
     Serial.println("Websocket client connection finished");
     globalClient = NULL;
- 
   }
 }
 
-// Data tests
-void getNewData()
+/** Send websocket message function
+ * 
+ * @brief This function sends a websocket message.
+ *  
+ * @return void.
+ *  
+ * @details This function sends a websocket message.
+ *  
+ * @note This function is called when a websocket message is generated.
+ * 
+ * @see loop().
+ * 
+ */
+void sendWsMessage(String message)
 {
-    // message = String(t) + ";" + String(heartRateData) + ";" + String(spo2Data) + ";" 
-    //         + String(bpm_v) + " BPM" + ";" + String(spo_v) + " %";
-    // t++;
+  if(globalClient != NULL && globalClient->status() == WS_CONNECTED)
+    {
+        globalClient -> text(message); // '{"tiempo":X, "amplitud":Y, "spo2":Z}'
+        message = "";
+    }
 }
+
+// Data tests
+/** Data tests initialization function
+ * 
+ * @brief This function initializes the data tests.
+ *  
+ * @return void.
+ *  
+ * @details This function initializes the data tests.
+ *  
+ * @note This function is called once.
+ * 
+ */
 void fillDataTests()
 {   
-    int8_t* heartRateData_temp = new int8_t[display.xAxisEnd - display.xAxisBegin];
-    int8_t* spo2Data_temp = new int8_t[display.xAxisEnd - display.xAxisBegin];
+    int32_t* heartRateData_temp = new int32_t[display.xAxisEnd - display.xAxisBegin];
+    int32_t* spo2Data_temp = new int32_t[display.xAxisEnd - display.xAxisBegin];
 
     int j = 0;
     for (uint8_t i = 0; i < display.xAxisEnd; i++)
@@ -827,8 +926,8 @@ void fillDataTests()
         }
     }
 
-    int8_t *beatsPerMinute_temp = new int8_t[5];
-    int8_t *spo2Percentage_temp = new int8_t[5];
+    int32_t *beatsPerMinute_temp = new int32_t[5];
+    int32_t *spo2Percentage_temp = new int32_t[5];
 
     beatsPerMinute_temp[0] = 60;
     beatsPerMinute_temp[1] = 70;
