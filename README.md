@@ -304,8 +304,8 @@ El display se connecta al ESP32 mediante 7 pines, los cuales se muestran en la s
 |PIN GMG-12864-06D| PIN ESP32 | Descripción |
 |-----------------|-----------|-------------|
 |CS               |GPIO 5     |Chip Select  |
-|RSE              |GPIO 33    |Reset        |
-|RS               |GPIO 32    |DC           |
+|RSE              |GPIO 32    |Reset        |
+|RS               |GPIO 33    |DC           |
 |SCL              |GPIO 18    |SPI Clock    |
 |SI               |GPIO 23    |SPI Data     |
 |VDD              |3V3        |VCC          |
