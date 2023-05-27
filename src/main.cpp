@@ -42,8 +42,8 @@ struct fundamentalsFreqs{
  *
  */
 class globalValues {
-    int32_t* heartRateDataArray;
-    int32_t* spo2DataArray;
+    uint32_t* heartRateDataArray;
+    uint32_t* spo2DataArray;
     int32_t beatsPerMinute, spo2Percentage;
     vector <fundamentalsFreqs> freqs;
     
@@ -72,7 +72,7 @@ class globalValues {
          * @param spo2Percentage SPO2 percentage.
          * @param freqs Fundamentals frequencies.
          */
-        globalValues(int32_t* heartRateDataArray, int32_t* spo2DataArray, int32_t beatsPerMinute, int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
+        globalValues(uint32_t* heartRateDataArray, uint32_t* spo2DataArray, int32_t beatsPerMinute, int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
         {
             this -> heartRateDataArray = heartRateDataArray;
             this -> spo2DataArray = spo2DataArray;
@@ -87,7 +87,7 @@ class globalValues {
          * 
          * @param heartRateDataArray Heart rate data array.
          */
-        void setHeartRateDataArray(int32_t* heartRateDataArray)
+        void setHeartRateDataArray(uint32_t* heartRateDataArray)
         {
             this -> heartRateDataArray = heartRateDataArray;
         }
@@ -98,7 +98,7 @@ class globalValues {
          * 
          * @param spo2DataArray SPO2 data array.
          */
-        void setSpo2DataArray(int32_t* spo2DataArray)
+        void setSpo2DataArray(uint32_t* spo2DataArray)
         {
             this -> spo2DataArray = spo2DataArray;
         }
@@ -142,7 +142,7 @@ class globalValues {
          * 
          * @return Heart rate data array.
          */
-        int32_t* getHeartRateDataArray()
+        uint32_t* getHeartRateDataArray()
         {
             return heartRateDataArray;
         }
@@ -153,7 +153,7 @@ class globalValues {
          * 
          * @return SPO2 data array.
          */
-        int32_t* getSpo2DataArray()
+        uint32_t* getSpo2DataArray()
         {
             return spo2DataArray;
         }
@@ -309,8 +309,8 @@ class Button{
  */
 class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
     public:
-        int32_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, halfHeight;
-        int32_t margin = 8;
+        uint32_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, halfHeight;
+        uint32_t margin = 8;
 
         /** Display constructor
          * 
@@ -407,12 +407,12 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param dataVector Data to get the max value.
          * @return Max value.
          */
-        int32_t getMaxValue(int32_t* dataVector)
+        uint32_t getMaxValue(uint32_t* dataVector)
         {
-            int32_t max = 0;
+            uint32_t max = 0;
             for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
             {
-                if (abs(dataVector[i]) > max)
+                if (dataVector[i] > max)
                 {
                     max = dataVector[i];
                 }
@@ -427,22 +427,22 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param dataVector Data to discretize.
          * @return Discretized data.
          */
-        int32_t* discretizeData(int32_t* dataVector, bool choiceBPM)
+        uint32_t* discretizeData(uint32_t* dataVector, bool choiceBPM)
         {
-            int32_t* discretizedDataVector = new int32_t[xAxisEnd - xAxisBegin];
-            int32_t max = getMaxValue(dataVector);
-            int32_t yAxisScale = 1;
+            uint32_t* discretizedDataVector = new uint32_t[xAxisEnd - xAxisBegin];
+            uint32_t max = getMaxValue(dataVector);
+            uint32_t yAxisScale = 1;
             if (choiceBPM){
-                yAxisScale =int32_t(max/(halfHeight - margin));
+                yAxisScale =uint32_t(max/(halfHeight - margin));
             } else {
-                yAxisScale = int32_t(max/(yAxisEnd - margin)); 
+                yAxisScale = uint32_t(max/(yAxisEnd - margin)); 
             } 
 
             if (yAxisScale == 0)yAxisScale = 1;
 
-            for (int32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+            for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
             {
-                discretizedDataVector[i] = int32_t(dataVector[i]/yAxisScale);
+                discretizedDataVector[i] = uint32_t(dataVector[i]/yAxisScale);
             }
             return discretizedDataVector;
         }
@@ -454,12 +454,12 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param dataVector Data to draw.
          * @param choiceBPM Choice of the data to draw.
          */
-        void drawData(int32_t* dataVector, bool choiceBPM)
+        void drawData(uint32_t* dataVector, bool choiceBPM)
         {
-            int32_t lastHeight = 0;
+            uint32_t lastHeight = 0;
             if (choiceBPM)
             {
-                for (int32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+                for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
                 {
                     this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, halfHeight - dataVector[i]);
                     lastHeight = halfHeight - dataVector[i];
@@ -467,7 +467,7 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
             }
             else
             {
-                for (int32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+                for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
                 {
                     this -> drawLine(xAxisBegin + i, lastHeight, xAxisBegin + i, yAxisEnd - margin - dataVector[i]);
                     lastHeight = yAxisEnd - margin - dataVector[i];
@@ -483,10 +483,10 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param value Value to update.
          * @param choiceBPM Choice of the data to update.
          */
-        void updateData(int32_t* array, int32_t value, bool choiceBPM)
+        void updateData(uint32_t* array, int32_t value, bool choiceBPM)
         {
             this -> drawAxis();
-            int32_t* discretizedArray = this -> discretizeData(array, choiceBPM);
+            uint32_t* discretizedArray = this -> discretizeData(array, choiceBPM);
             this -> drawData(discretizedArray, choiceBPM);
             this -> printMeasurements(value, choiceBPM);
         }
@@ -520,19 +520,19 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
         void drawFreqs(const vector<fundamentalsFreqs>& freqs)
         {
             int max = getMaxAmplitude(freqs);
-            int32_t yAxisScale = max/yAxisEnd;
-            int32_t xAxisScale = (xAxisEnd + margin/2)/freqs.size();
-            int32_t yAxisStep = yAxisEnd/freqs.size();
+            uint32_t yAxisScale = max/yAxisEnd;
+            uint32_t xAxisScale = (xAxisEnd + margin/2)/freqs.size();
+            uint32_t yAxisStep = yAxisEnd/freqs.size();
             this -> setFont(u8g2_font_tinyunicode_tf);
 
             for (uint8_t i = 0; i < freqs.size() ; i++)
             {
                 // Plot amplitude of each freq
-                int32_t xAxisPlotBegin = xAxisScale*i + xAxisScale/2;
-                int32_t xWidth = int(xAxisPlotBegin + xAxisScale/5);
-                int32_t totalPixelValues = int(freqs[i].amplitude/yAxisScale);
+                uint32_t xAxisPlotBegin = xAxisScale*i + xAxisScale/2;
+                uint32_t xWidth = int(xAxisPlotBegin + xAxisScale/5);
+                uint32_t totalPixelValues = int(freqs[i].amplitude/yAxisScale);
 
-                for (int32_t j = 0; j < totalPixelValues; j++)
+                for (uint32_t j = 0; j < totalPixelValues; j++)
                 {
                     this -> drawLine(xAxisPlotBegin, yAxisEnd -j, xWidth ,yAxisEnd -j);
                 }
@@ -936,11 +936,11 @@ void sendWsMessage(String message)
  */
 void fillDataTests()
 {   
-    int32_t* heartRateData_temp = new int32_t[display.xAxisEnd - display.xAxisBegin];
-    int32_t* spo2Data_temp = new int32_t[display.xAxisEnd - display.xAxisBegin];
+    uint32_t* heartRateData_temp = new uint32_t[display.xAxisEnd - display.xAxisBegin];
+    uint32_t* spo2Data_temp = new uint32_t[display.xAxisEnd - display.xAxisBegin];
 
-    int32_t j = 0;
-    for (int32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
+    uint32_t j = 0;
+    for (uint32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
     {
         // Little mountain in the middle with a value of yAxisEnd
         if (i < display.xAxisEnd/4)
@@ -963,7 +963,7 @@ void fillDataTests()
         }
     }
 
-    for (int32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
+    for (uint32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
     {
         // Little mountain in the middle with a value of yAxisEnd
         if (i < display.xAxisEnd/4)
