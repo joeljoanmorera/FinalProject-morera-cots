@@ -1,4 +1,4 @@
- #include <U8g2lib.h>
+#include <U8g2lib.h>
 #include <SPI.h>
 #include "WiFi.h"
 #include "SPIFFS.h"
@@ -20,9 +20,10 @@ const int BUTTON_NUMBER = 3;
 const int BPM_PIN = 25;
 const int SPO2_PIN = 26;
 const int FUNDAMENTALS_PIN = 27;
+uint8_t* button_pin;
 //Server vars.
-const char* ssid = "*****";
-const char* password =  "*****";
+const char* ssid = "MiFibra-F392";
+const char* password =  "5QUisHGE";
 
 // CLASSES AND STRUCTS
 /** Fundamentals frequencies struct
@@ -31,7 +32,7 @@ const char* password =  "*****";
  *
  */
 struct fundamentalsFreqs{
-    String freqsHz;
+    int freqsHz;
     int amplitude;
 };
 
@@ -196,33 +197,53 @@ class globalValues {
          * 
          * @return JSON of the global values.
          */
-        String getJson()
+        String getJson(int size_of_HR, int size_of_SPO2)
         {
             String json = "{";
             json += "\"heartRateDataArray\": [";
-            for(int i = 0; i < 100; i++)
+            for(int i = 0; i < size_of_HR; i++)
             {
                 json += String(heartRateDataArray[i]);
-                if(i != 99)
+                if(i != size_of_HR - 1)
                 {
-                    json += ",";
+                    json += ", ";
                 }
             }
             json += "],";
             json += "\"spo2DataArray\": [";
-            for(int i = 0; i < 100; i++)
+            for(int i = 0; i < size_of_SPO2; i++)
             {
                 json += String(spo2DataArray[i]);
-                if(i != 99)
+                if(i != size_of_SPO2 - 1)
                 {
-                    json += ",";
+                    json += ", ";
                 }
             }
             json += "],";
             json += "\"beatsPerMinute\": " + String(beatsPerMinute) + ",";
             json += "\"spo2Percentage\": " + String(spo2Percentage) + ",";
+            json += "\"freqsAmplitude\": [";
+            for(int i = 0; i < freqs.size(); i++)
+            {
+                json += String(freqs[i].amplitude);
+                if(i != freqs.size() - 1)
+                {
+                    json += ", ";
+                }
+            }
+            json += "],";
+            json += "\"freqsHz\": [";
+            for(int i = 0; i < freqs.size(); i++)
+            {
+                json += String(freqs[i].freqsHz);
+                if(i != freqs.size() - 1)
+                {
+                    json += ", ";
+                }
+            }
             json += "]";
             json += "}";
+
             return json;
         }
 };
@@ -288,8 +309,8 @@ class Button{
  */
 class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
     public:
-        int8_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, halfHeight;
-        int8_t margin = 8;
+        int32_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, halfHeight;
+        int32_t margin = 8;
 
         /** Display constructor
          * 
@@ -315,6 +336,7 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
             this -> begin();                         // Inicialitzate
             this -> setContrast (10);                // Contraste
             this -> enableUTF8Print();               // Visualize UTF-8 characters
+            this -> setFont(u8g2_font_6x10_tf);      // Font
 
             //Axis
             uint8_t height = this -> getDisplayHeight(); // Get display height : 64
@@ -387,7 +409,7 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          */
         int32_t getMaxValue(int32_t* dataVector)
         {
-            int max = 0;
+            int32_t max = 0;
             for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
             {
                 if (abs(dataVector[i]) > max)
@@ -409,18 +431,18 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
         {
             int32_t* discretizedDataVector = new int32_t[xAxisEnd - xAxisBegin];
             int32_t max = getMaxValue(dataVector);
-            int32_t yAxisScale;
+            int32_t yAxisScale = 1;
             if (choiceBPM){
-                yAxisScale =int(max/(halfHeight - margin));
+                yAxisScale =int32_t(max/(halfHeight - margin));
             } else {
-                yAxisScale = int(max/(yAxisEnd - margin)); 
+                yAxisScale = int32_t(max/(yAxisEnd - margin)); 
             } 
 
             if (yAxisScale == 0)yAxisScale = 1;
 
-            for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+            for (int32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
             {
-                discretizedDataVector[i] = int(dataVector[i]/yAxisScale);
+                discretizedDataVector[i] = int32_t(dataVector[i]/yAxisScale);
             }
             return discretizedDataVector;
         }
@@ -434,10 +456,10 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          */
         void drawData(int32_t* dataVector, bool choiceBPM)
         {
-            int8_t lastHeight = 0;
+            int32_t lastHeight = 0;
             if (choiceBPM)
             {
-                for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+                for (int32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
                 {
                     this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, halfHeight - dataVector[i]);
                     lastHeight = halfHeight - dataVector[i];
@@ -445,7 +467,7 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
             }
             else
             {
-                for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+                for (int32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
                 {
                     this -> drawLine(xAxisBegin + i, lastHeight, xAxisBegin + i, yAxisEnd - margin - dataVector[i]);
                     lastHeight = yAxisEnd - margin - dataVector[i];
@@ -498,19 +520,19 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
         void drawFreqs(const vector<fundamentalsFreqs>& freqs)
         {
             int max = getMaxAmplitude(freqs);
-            int yAxisScale = max/yAxisEnd;
-            int xAxisScale = (xAxisEnd + margin/2)/freqs.size();
-            int yAxisStep = yAxisEnd/freqs.size();
+            int32_t yAxisScale = max/yAxisEnd;
+            int32_t xAxisScale = (xAxisEnd + margin/2)/freqs.size();
+            int32_t yAxisStep = yAxisEnd/freqs.size();
             this -> setFont(u8g2_font_tinyunicode_tf);
 
             for (uint8_t i = 0; i < freqs.size() ; i++)
             {
                 // Plot amplitude of each freq
-                int xAxisPlotBegin = xAxisScale*i + xAxisScale/2;
-                int xWidth = int(xAxisPlotBegin + xAxisScale/5);
-                int8_t totalPixelValues = int(freqs[i].amplitude/yAxisScale);
+                int32_t xAxisPlotBegin = xAxisScale*i + xAxisScale/2;
+                int32_t xWidth = int(xAxisPlotBegin + xAxisScale/5);
+                int32_t totalPixelValues = int(freqs[i].amplitude/yAxisScale);
 
-                for (int8_t j = 0; j < totalPixelValues; j++)
+                for (int32_t j = 0; j < totalPixelValues; j++)
                 {
                     this -> drawLine(xAxisPlotBegin, yAxisEnd -j, xWidth ,yAxisEnd -j);
                 }
@@ -542,7 +564,6 @@ Display display(U8G2_R0, SCL, SI, CS, RS, RSE);
 // Buttons
 Button* buttons;                            
 hw_timer_t * timer = NULL;                  
-
 // Web variables
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
@@ -565,7 +586,9 @@ void sendWsMessage(String message);
 
 // Data for tests functions declaration
 void fillDataTests();
-void getNewData();  
+
+// Visualize data functions declaration
+void visualizeData(void * parameter);
 
 /** Setup function
  * 
@@ -587,12 +610,22 @@ void setup()
 
     // Display initialization
     display.init();
-    
+
     //Initzialitaion of buttons
     initButtons();
 
     // Web initialization
     initWeb();
+
+    // Create task for visualizing data
+    xTaskCreatePinnedToCore(
+                    visualizeData,   /* Task function. */
+                    "visualizeData", /* name of task. */
+                    10000,        /* Stack size of task */
+                    NULL,         /* parameter of the task */
+                    1,            /* priority of the task */
+                    NULL,         /* Task handle to keep track of created task */
+                    0);           /* pin task to core 0 */
 
     // Data initialization
     fillDataTests();
@@ -604,34 +637,62 @@ void setup()
  *  
  * @return void.
  *  
- * @details This function updates the data in the display.
+ * @details This function is empty because all the program is executed in the task.
  *  
- * @note This function is called continuously.
+ * @note This function is called once.
  * 
  * @see setup().
  * 
  */
-void loop() 
-{
-    display.firstPage(); // First page of the display
-    do {
-        if (buttons[0].orden){
-            display.updateData(globalValuesVar.getHeartRateDataArray(), globalValuesVar.getBeatsPerMinute(), true);
-            Serial.println("Heart rate");
-        }
-        if(buttons[1].orden){
-            display.updateData(globalValuesVar.getSpo2DataArray(), globalValuesVar.getSpo2Percentage(), false);
-            Serial.println("SPO2");
-        }
-        if(buttons[2].orden){
-            display.updateFreqs(globalValuesVar.getFreqs());
-            Serial.println("Freqs");
-        }        
-    } while(display.nextPage());
+void loop(){}
 
-    sendWsMessage(globalValuesVar.getJson());
-    
-    delay(700); //Wait 1000ms
+/** Visualize data function
+ * 
+ * @brief This function visualizes the data in the display and in the web page.
+ *  
+ * @return void.
+ *  
+ * @details This function visualizes the data in the display and in the web page. This
+ * function is executed in one core of the ESP32.
+ *  
+ * @note This function is called once.
+ * 
+ * @see setup().
+ * 
+ */
+void visualizeData(void * parameter)
+{
+    for(;;)
+    {
+        display.firstPage();
+        Serial.print("Visualizing data - Button activated: ");
+        if (buttons[0].orden)
+            Serial.println("Heart Rate");
+        else
+        {
+            if(buttons[1].orden)
+                Serial.println("SpO2");
+            else 
+                Serial.println("Frequencies");
+        }
+
+        while(display.nextPage())
+        {
+            if (buttons[0].orden){
+                display.updateData(globalValuesVar.getHeartRateDataArray(), globalValuesVar.getBeatsPerMinute(), true);
+            }
+            if(buttons[1].orden){
+                display.updateData(globalValuesVar.getSpo2DataArray(), globalValuesVar.getSpo2Percentage(), false);
+            }
+            if(buttons[2].orden){
+                display.updateFreqs(globalValuesVar.getFreqs());
+            }        
+        }
+
+        sendWsMessage(globalValuesVar.getJson((display.xAxisEnd - display.xAxisBegin), (display.xAxisEnd - display.xAxisBegin)));
+
+        delay(700); //Wait 1000ms
+    }
 }
 
 // Button functions
@@ -651,10 +712,12 @@ void loop()
 void initButtons()
 {
     //Buttons pins
-    uint8_t *button_pin = new uint8_t [BUTTON_NUMBER];
-    button_pin[0] = BPM_PIN;                                // Heart rate button
-    button_pin[1] = SPO2_PIN;                               // SPO2 button
-    button_pin[2] = FUNDAMENTALS_PIN;                       // Freqs button
+    uint8_t *button_pin_temp = new uint8_t [BUTTON_NUMBER];
+    button_pin_temp[0] = BPM_PIN;                                // Heart rate button
+    button_pin_temp[1] = SPO2_PIN;                               // SPO2 button
+    button_pin_temp[2] = FUNDAMENTALS_PIN;                       // Freqs button
+
+    button_pin = button_pin_temp;
 
     //Buttons definition
     Button *buttons_temp = new Button[BUTTON_NUMBER];
@@ -664,21 +727,23 @@ void initButtons()
     }
     buttons = buttons_temp;
 
+
     //Buttons'pins initialization
     for(uint8_t i = 0; i < BUTTON_NUMBER; i++)
     {
         pinMode(button_pin[i], INPUT_PULLUP);
     }
 
-    // Default order
-    buttons[0].orden = 1;
-
     // Timer initialization
     timer = timerBegin(0, 80, true);                            //Initiation of timer
     timerAttachInterrupt(timer, &buttonManagement, true);       //Relate function with timer
     timerAlarmWrite(timer, 50000, true);                        //Specify time betweem interrupts
     timerAlarmEnable(timer);                                    //Enable timer
+
+    // Default order
+    buttons[0].orden = 1;
 }
+
 /** Button management function
  * 
  * @brief This function manages the buttons.
@@ -874,8 +939,8 @@ void fillDataTests()
     int32_t* heartRateData_temp = new int32_t[display.xAxisEnd - display.xAxisBegin];
     int32_t* spo2Data_temp = new int32_t[display.xAxisEnd - display.xAxisBegin];
 
-    int j = 0;
-    for (uint8_t i = 0; i < display.xAxisEnd; i++)
+    int32_t j = 0;
+    for (int32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
     {
         // Little mountain in the middle with a value of yAxisEnd
         if (i < display.xAxisEnd/4)
@@ -898,7 +963,7 @@ void fillDataTests()
         }
     }
 
-    for (uint8_t i = 0; i < display.xAxisEnd; i++)
+    for (int32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
     {
         // Little mountain in the middle with a value of yAxisEnd
         if (i < display.xAxisEnd/4)
@@ -945,19 +1010,19 @@ void fillDataTests()
 
     vector<fundamentalsFreqs> freqs_temp(7);
 
-    freqs_temp[0].freqsHz = "100 Hz";
+    freqs_temp[0].freqsHz = 100;
     freqs_temp[0].amplitude = 640;
-    freqs_temp[1].freqsHz = "500 Hz";
+    freqs_temp[1].freqsHz = 500;
     freqs_temp[1].amplitude = 240;
-    freqs_temp[2].freqsHz = "1 kHz";
+    freqs_temp[2].freqsHz = 1000;
     freqs_temp[2].amplitude = 440;
-    freqs_temp[3].freqsHz = "10 kHz";
+    freqs_temp[3].freqsHz = 10000;
     freqs_temp[3].amplitude = 129;
-    freqs_temp[4].freqsHz = "20 kHz";
+    freqs_temp[4].freqsHz = 20000;
     freqs_temp[4].amplitude = 100;
-    freqs_temp[5].freqsHz = "30 kHz";
+    freqs_temp[5].freqsHz = 30000;
     freqs_temp[5].amplitude = 50;
-    freqs_temp[6].freqsHz = "40 kHz";
+    freqs_temp[6].freqsHz = 40000;
     freqs_temp[6].amplitude = 220;
 
     globalValuesVar.setHeartRateDataArray(heartRateData_temp);
