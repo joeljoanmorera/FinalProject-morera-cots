@@ -12,7 +12,6 @@
 
 using namespace std;
 
-
 // Max30102 definitions
 #define I2C_SPEED_FAST 400000 // Set I2C frequency to 400kHz
 #define MAX_BRIGHTNESS 255 // Set maximum brightness
@@ -21,7 +20,7 @@ using namespace std;
 #define SAMPLES 64 // Número de muestras para la FFT
 #define SAMPLING_FREQUENCY 25 // Frecuencia de muestreo en Hz
 
-// Pin's definition
+// Display pin's definition
 #define SCL 18
 #define SI 23
 #define CS 5
@@ -330,8 +329,8 @@ class Button{
  */
 class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
     public:
-        int32_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, halfHeight;
-        int32_t margin = 8;
+        uint32_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, halfHeight;
+        uint32_t margin = 8;
 
         /** Display constructor
          * 
@@ -428,12 +427,12 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param dataVector Data to get the max value.
          * @return Max value.
          */
-        int32_t getMaxValue(int32_t* dataVector)
+        uint32_t getMaxValue(uint32_t* dataVector)
         {
-            int32_t max = 0;
+            uint32_t max = 0;
             for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
             {
-                if (abs(dataVector[i]) > max)
+                if (dataVector[i] > max)
                 {
                     max = dataVector[i];
                 }
@@ -448,22 +447,22 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param dataVector Data to discretize.
          * @return Discretized data.
          */
-        int32_t* discretizeData(int32_t* dataVector, bool choiceBPM)
+        uint32_t* discretizeData(uint32_t* dataVector, bool choiceBPM)
         {
-            int32_t* discretizedDataVector = new int32_t[xAxisEnd - xAxisBegin];
-            int32_t max = getMaxValue(dataVector);
-            int32_t yAxisScale = 1;
+            uint32_t* discretizedDataVector = new uint32_t[xAxisEnd - xAxisBegin];
+            uint32_t max = getMaxValue(dataVector);
+            uint32_t yAxisScale = 1;
             if (choiceBPM){
-                yAxisScale =int32_t(max/(halfHeight - margin));
+                yAxisScale = uint32_t(max/(halfHeight - margin));
             } else {
-                yAxisScale = int32_t(max/(yAxisEnd - margin)); 
+                yAxisScale = uint32_t(max/(yAxisEnd - margin)); 
             } 
 
             if (yAxisScale == 0)yAxisScale = 1;
 
-            for (int32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+            for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
             {
-                discretizedDataVector[i] = int32_t(dataVector[i]/yAxisScale);
+                discretizedDataVector[i] = uint32_t(dataVector[i]/yAxisScale);
             }
             return discretizedDataVector;
         }
@@ -475,12 +474,12 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param dataVector Data to draw.
          * @param choiceBPM Choice of the data to draw.
          */
-        void drawData(int32_t* dataVector, bool choiceBPM)
+        void drawData(uint32_t* dataVector, bool choiceBPM)
         {
-            int32_t lastHeight = 0;
+            uint32_t lastHeight = 0;
             if (choiceBPM)
             {
-                for (int32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+                for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
                 {
                     this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, halfHeight - dataVector[i]);
                     lastHeight = halfHeight - dataVector[i];
@@ -488,7 +487,7 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
             }
             else
             {
-                for (int32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+                for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
                 {
                     this -> drawLine(xAxisBegin + i, lastHeight, xAxisBegin + i, yAxisEnd - margin - dataVector[i]);
                     lastHeight = yAxisEnd - margin - dataVector[i];
@@ -504,10 +503,10 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
          * @param value Value to update.
          * @param choiceBPM Choice of the data to update.
          */
-        void updateData(int32_t* array, int32_t value, bool choiceBPM)
+        void updateData(uint32_t* array, int32_t value, bool choiceBPM)
         {
             this -> drawAxis();
-            int32_t* discretizedArray = this -> discretizeData(array, choiceBPM);
+            uint32_t* discretizedArray = this -> discretizeData(array, choiceBPM);
             this -> drawData(discretizedArray, choiceBPM);
             this -> printMeasurements(value, choiceBPM);
         }
@@ -541,19 +540,19 @@ class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
         void drawFreqs(const vector<fundamentalsFreqs>& freqs)
         {
             int max = getMaxAmplitude(freqs);
-            int32_t yAxisScale = max/yAxisEnd;
-            int32_t xAxisScale = (xAxisEnd + margin/2)/freqs.size();
-            int32_t yAxisStep = yAxisEnd/freqs.size();
+            uint32_t yAxisScale = max/yAxisEnd;
+            uint32_t xAxisScale = (xAxisEnd + margin/2)/freqs.size();
+            uint32_t yAxisStep = yAxisEnd/freqs.size();
             this -> setFont(u8g2_font_tinyunicode_tf);
 
             for (uint8_t i = 0; i < freqs.size() ; i++)
             {
                 // Plot amplitude of each freq
-                int32_t xAxisPlotBegin = xAxisScale*i + xAxisScale/2;
-                int32_t xWidth = int(xAxisPlotBegin + xAxisScale/5);
-                int32_t totalPixelValues = int(freqs[i].amplitude/yAxisScale);
+                uint32_t xAxisPlotBegin = xAxisScale*i + xAxisScale/2;
+                uint32_t xWidth = int(xAxisPlotBegin + xAxisScale/5);
+                uint32_t totalPixelValues = int(freqs[i].amplitude/yAxisScale);
 
-                for (int32_t j = 0; j < totalPixelValues; j++)
+                for (uint32_t j = 0; j < totalPixelValues; j++)
                 {
                     this -> drawLine(xAxisPlotBegin, yAxisEnd -j, xWidth ,yAxisEnd -j);
                 }
@@ -652,7 +651,7 @@ void setup()
 
     xTaskCreatePinnedToCore(
         data,   /* Task function. */
-        "Task1",     /* name of task. */
+        "Data task",     /* name of task. */
         10000,       /* Stack size of task */
         NULL,        /* parameter of the task */
         1,           /* priority of the task */
@@ -733,6 +732,8 @@ void visualizeData(void * parameter)
         delay(700); //Wait 1000ms
     }
 }
+
+// VISUALIZE DATA FUNCTIONS
 
 // Button functions
 /** Init buttons function
@@ -959,6 +960,107 @@ void sendWsMessage(String message)
         message = "";
     }
 }
+
+// DATA FUNCTIONS
+
+void fillDataTests()
+{   
+    uint32_t* heartRateData_temp = new uint32_t[display.xAxisEnd - display.xAxisBegin];
+    uint32_t* spo2Data_temp = new uint32_t[display.xAxisEnd - display.xAxisBegin];
+
+    uint32_t j = 0;
+    for (uint32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
+    {
+        // Little mountain in the middle with a value of yAxisEnd
+        if (i < display.xAxisEnd/4)
+        {
+            spo2Data_temp[i] = 0;
+        }
+        else if (i < display.xAxisEnd/2)
+        {
+            spo2Data_temp[i] =  j;
+            j+=3;
+        }
+        else if (i < 3*display.xAxisEnd/4)
+        {
+            j-=3;
+            spo2Data_temp[i] = j;
+        }
+        else
+        {
+            spo2Data_temp[i] = 0;
+        }
+    }
+
+    for (uint32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
+    {
+        // Little mountain in the middle with a value of yAxisEnd
+        if (i < display.xAxisEnd/4)
+        {
+            heartRateData_temp[i] = 0;
+        }
+        else if (i < 3*display.xAxisEnd/8)
+        {
+            heartRateData_temp[i] =  j;
+            j+=3;
+        }
+        else if (i < 5*display.xAxisEnd/8)
+        {
+            j-=3;
+            heartRateData_temp[i] = j;
+        }
+        else if (i < 3*display.xAxisEnd/4)
+        {
+            j+=3;
+            heartRateData_temp[i] = j;
+        }
+        else
+        {
+            heartRateData_temp[i] = 0;
+        }
+    }
+
+    int32_t *beatsPerMinute_temp = new int32_t[5];
+    int32_t *spo2Percentage_temp = new int32_t[5];
+
+    beatsPerMinute_temp[0] = 60;
+    beatsPerMinute_temp[1] = 70;
+    beatsPerMinute_temp[2] = 80;
+    beatsPerMinute_temp[3] = 90;
+    beatsPerMinute_temp[4] = 100;
+
+
+    spo2Percentage_temp[0] = 90;
+    spo2Percentage_temp[1] = 91;
+    spo2Percentage_temp[2] = 92;
+    spo2Percentage_temp[3] = 93;
+    spo2Percentage_temp[4] = 94;
+
+
+    vector<fundamentalsFreqs> freqs_temp(7);
+
+    freqs_temp[0].freqsHz = 100;
+    freqs_temp[0].amplitude = 640;
+    freqs_temp[1].freqsHz = 500;
+    freqs_temp[1].amplitude = 240;
+    freqs_temp[2].freqsHz = 1000;
+    freqs_temp[2].amplitude = 440;
+    freqs_temp[3].freqsHz = 10000;
+    freqs_temp[3].amplitude = 129;
+    freqs_temp[4].freqsHz = 20000;
+    freqs_temp[4].amplitude = 100;
+    freqs_temp[5].freqsHz = 30000;
+    freqs_temp[5].amplitude = 50;
+    freqs_temp[6].freqsHz = 40000;
+    freqs_temp[6].amplitude = 220;
+
+    globalValuesVar.setHeartRateDataArray(heartRateData_temp);
+    globalValuesVar.setSpo2DataArray(spo2Data_temp);
+    globalValuesVar.setBeatsPerMinute(beatsPerMinute_temp[0]);
+    globalValuesVar.setSpo2Percentage(spo2Percentage_temp[0]);
+    globalValuesVar.setFreqs(freqs_temp);
+}
+
 /** MAX30102 initialization function
  * 
  * @brief This initializes MAX30102.
@@ -990,7 +1092,20 @@ void iniMAX30102()
 
     particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
 }
-/** */
+
+/** Read file function
+ * 
+ * @brief This function reads the file.
+ *  
+ * @return void.
+ *  
+ * @details This function reads the file.
+ *  
+ * @note This function is called in setup.
+ * 
+ * @see setup().
+ * 
+ */
 void readfile()
 {
   int i =0;
@@ -1022,6 +1137,19 @@ void readfile()
     file.close(); 
 }
 
+/** Data function
+ * 
+ * @brief This function gets the data.
+ *  
+ * @return void.
+ *  
+ * @details This function gets the data.
+ *  
+ * @note This function is called in setup.
+ * 
+ * @see setup().
+ * 
+ */
 void data(void *pvParameters)
 {
   vector<float> input_data;
@@ -1093,6 +1221,19 @@ void data(void *pvParameters)
     }
 }
 
+/** FFT function
+ * 
+ * @brief This function does the FFT.
+ *  
+ * @return void.
+ *  
+ * @details This function does the FFT.
+ *  
+ * @note This function is called in setup.
+ * 
+ * @see setup().
+ * 
+ */
 void fft()
 {
   arduinoFFT FFT = arduinoFFT();
