@@ -42,8 +42,8 @@ MAX30105 particleSensor;
 //Coeficients for the filter
 float vcoefs1[201];
 //Ir and Red led data
-uint32_t irBuffer[100]; //infrared LED sensor data
-uint32_t redBuffer[100];  //red LED sensor 
+uint32_t irBuffer[200]; //infrared LED sensor data
+uint32_t redBuffer[200];  //red LED sensor 
 
 // CLASSES AND STRUCTS
 /** Fundamentals frequencies struct
@@ -1083,7 +1083,7 @@ void iniMAX30102()
         while (1);
     }
     //Setup to sense a nice looking saw tooth on the plotter
-    byte ledBrightness = 0x0F; //Options: 0=Off to 255=50mA
+    byte ledBrightness = 0x1F; //Options: 0=Off to 255=50mA
     byte sampleAverage = 4; //Options: 1, 2, 4, 8, 16, 32
     byte ledMode = 3; //Options: 1 = Red only, 2 = Red + IR, 3 = Red + IR + Green
     int sampleRate = 3200; //Options: 50, 100, 200, 400, 800, 1000, 1600, 3200
@@ -1189,11 +1189,11 @@ void data(void *pvParameters)
             input_data.erase(input_data.begin()); // eliminem la mostra més antiga de la llista
             input_data2.erase(input_data2.begin());
 
-            if (i>=100)
+            if (i>=200)
             {
                 i=0;
                 
-                maxim_heart_rate_and_oxygen_saturation(irBuffer, 100, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
+                maxim_heart_rate_and_oxygen_saturation(irBuffer, 200, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
                 if(validHeartRate && validSPO2){
                 globalValuesVar.setBeatsPerMinute(heartRate);
                 globalValuesVar.setSpo2Percentage(spo2);}
