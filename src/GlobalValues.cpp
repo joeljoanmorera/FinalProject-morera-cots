@@ -1,4 +1,4 @@
-#include <GlobalValues.h>
+#include "GlobalValues.h"
 
 /** Global values default constructor
  * 
@@ -149,63 +149,7 @@ vector<fundamentalsFreqs> globalValues::getFreqs()
  * 
  * @return JSON of the global values.
  */
-String globalValues::getJson(int size_of_HR, int size_of_SPO2)
-{
-    String json = "{";
-    json += "\"heartRateDataArray\": [";
-    for(int i = 0; i < size_of_HR; i++)
-    {
-        json += String(heartRateDataArray[i]);
-        if(i != size_of_HR - 1)
-        {
-            json += ", ";
-        }
-    }
-    json += "],";
-    json += "\"spo2DataArray\": [";
-    for(int i = 0; i < size_of_SPO2; i++)
-    {
-        json += String(spo2DataArray[i]);
-        if(i != size_of_SPO2 - 1)
-        {
-            json += ", ";
-        }
-    }
-    json += "],";
-    json += "\"beatsPerMinute\": " + String(beatsPerMinute) + ",";
-    json += "\"spo2Percentage\": " + String(spo2Percentage) + ",";
-    json += "\"freqsAmplitude\": [";
-    for(int i = 0; i < freqs.size(); i++)
-    {
-        json += String(freqs[i].amplitude);
-        if(i != freqs.size() - 1)
-        {
-            json += ", ";
-        }
-    }
-    json += "],";
-    json += "\"freqsHz\": [";
-    for(int i = 0; i < freqs.size(); i++)
-    {
-        json += String(freqs[i].freqsHz);
-        if(i != freqs.size() - 1)
-        {
-            json += ", ";
-        }
-    }
-    json += "]";
-    json += "}";
-
-    return json;
-}
-
-/** Get JSON single values function
- * 
- * @brief This function gets the JSON of the global values.
- * 
- * @return JSON of the global values.
- */
-String globalValues::getJsonSingleValues(int size_of_heartrate, int size_of_spo2)
+String globalValues::getJson(int size_of_heartrate, int size_of_spo2)
 {
     if (pointerHeartRateDataArray == (size_of_heartrate - 1))
     {
