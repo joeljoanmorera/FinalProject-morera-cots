@@ -9,142 +9,8 @@
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300&display=swap" rel="stylesheet">
         <script src="https://kit.fontawesome.com/22446ba122.js" crossorigin="anonymous"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
-        <!-- <script type="text/javascript" src="./js/script.js"></script> -->
-        <script type="text/javascript">
-            // Arrays
-            var heartRateArray = [];
-            var spo2Array = [];
-            var timeArray = [];
-            var freqsHz = [];
-            var freqsAmplitude = [];
-            var bpm = "0 BPM";
-            var spo = "0 %";
-            var maxDataLength = 64;
-            var lastFreqsHz = 0;
-
-            // Conectar al WebSocket del ESP32
-            var socket = new WebSocket('ws://' + location.hostname + '/ws');
-            socket.onmessage = function(event) {
-                var raw = event.data;
-                console.log(raw);
-                var jsonData = JSON.parse(raw);
-
-                // Extraer los datos del objeto JSON
-                var heartRateDataArray = jsonData.heartRateDataArray;
-                var spo2DataArray = jsonData.spo2DataArray;
-                var beatsPerMinute = jsonData.beatsPerMinute;
-                var spo2Percentage = jsonData.spo2Percentage;
-                var freqsDataHz = jsonData.freqsHz;
-                var freqsDataAmplitude = jsonData.freqsAmplitude;
-
-                // Agregar los datos a las variables correspondientes
-                for (var i = 0;i < heartRateDataArray.length; i++){
-                    timeArray.push(i);
-                }
-                for (var i = 0; i < heartRateDataArray.length; i++) {
-                    heartRateArray.push(heartRateDataArray[i]);
-                }
-
-                for (var i = 0; i < spo2DataArray.length; i++) {
-                    spo2Array.push(spo2DataArray[i]);
-                }
-
-                for (var i = 0; i < freqsDataHz.length; i++) {
-                    freqsHz.push(freqsDataHz[i]);
-                }
-
-                for (var i = 0; i < freqsDataAmplitude.length; i++) {
-                    freqsAmplitude.push(freqsDataAmplitude[i]);
-                }
-                
-                // Actualizar los valores de BPM y SPO2
-                bpm = beatsPerMinute + " BPM";
-                spo = spo2Percentage + " %";
-
-                // Limitar la cantidad de datos a mostrar a 64
-                
-                if (heartRateArray.length > maxDataLength) {
-                    heartRateArray.splice(0, heartRateArray.length - maxDataLength);
-                }
-
-                if (spo2Array.length > maxDataLength) {
-                    spo2Array.splice(0, spo2Array.length - maxDataLength);
-                }
-                if (timeArray.length > maxDataLength) {
-                    timeArray.splice(0, timeArray.length - maxDataLength);
-                }
-                if (lastFreqsHz != 0){
-                    freqsHz.splice(0, freqsHz.length - lastFreqsHz);
-                    freqsAmplitude.splice(0, freqsAmplitude.length - lastFreqsHz);
-                }
-                lastFreqsHz = freqsHz.length;
-
-                // Actualizar los gráficos
-                cardiogramaChart.update();
-                spo2Chart.update();
-                freqsChart.update();
-                document.getElementById('heartrate').innerHTML = bpm;
-                document.getElementById('spo2').innerHTML = spo;
-            };
-        </script>
-        <style>
-            /* General*/
-            *{
-                margin:0px;
-                padding: 0px;
-            }
-            body{
-                background-color: #252525 ;
-                color: #999999;
-                font: 200 14px 'Poppins', sans-serif;   
-            }
-            h1{
-                color: #ffffff;
-                font-size: 70px;
-            }
-            h2{
-                color: #999;
-                font-size: 18px;
-                font-weight: 300;
-            }
-            p{
-                text-align: justify;
-            }
-
-            #footer{
-                background-color: #1d1d1d;
-                height: 55px;
-                padding-top: 20px;
-                text-align: center;
-            }
-            /* Classes and Identifiers*/
-            #header{
-                height: 85px;
-                padding-top: 20px;
-                text-align: center;
-            }
-            .container{
-                display: flex;
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: space-between;
-                gap: 5px 5px;
-                margin-bottom: 15px;
-                margin-top: 15px;
-            }
-            .card{
-                color: #ffffff;
-                font-size: 40px;
-                line-height: 40px;
-                background-color: #1d1d1d;
-                border-radius: 15px;
-                width: 700px;
-                text-align: center;
-                margin: 20px;
-                padding: 10px 10px;
-            }
-
-        </style>
+        <script type="text/javascript" src="./js/main.js"></script>
+        <link rel="stylesheet" type="text/css" href="./css/stylesheet.css">
     </head>
 
     <body>
@@ -153,6 +19,7 @@
                 <h1>Heartrate & SPO2</h1>
             </div>
             <div class="container">
+
                 <!-- Heartrate -->
                 <div class="card">
                     <h2>Frecuencia cardíaca</h2>
@@ -161,154 +28,25 @@
                         document.getElementById('heartrate').innerHTML = bpm;
                     </script>
                     <canvas id="cardiograma-chart" style="width:100%;max-width:400px"></canvas>
-                    <!-- <script type="text/javascript" src="./js/heartrate-chart.js"></script> -->
-                    <script type="text/javascript">
-                        // Crear el contexto del gráfico de cardiograma
-                        var cardiogramaCtx = document.getElementById('cardiograma-chart').getContext('2d');
-                        var cardiogramaChart = new Chart(cardiogramaCtx, {
-                            type: 'line',
-                            data: {
-                                labels: timeArray, // Etiquetas de tiempo
-                                datasets: [{
-                                    label: 'Cardiograma',
-                                    data: heartRateArray, // Datos del cardiograma
-                                    backgroundColor: 'rgba(0, 123, 255, 0.5)',
-                                    borderColor: 'rgba(0, 123, 255, 1)',
-                                    borderWidth: 1,
-                                    fill: false,
-                                    lineTension: 0
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: {
-                                    x: {
-                                        display: false,
-                                        title: {
-                                            display: true,
-                                            text: 'Tiempo'
-                                        }
-                                    },
-                                    y: {
-                                        display: true,
-                                        title: {
-                                            display: true,
-                                            text: 'Amplitud'
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    </script>
+                    <script type="text/javascript" src="./js/heartrate-chart.js"></script>
                 </div>
 
                 <!-- Freqs -->
                 <div class="card">
-                    <h2>Frecuencias</h2>
+                    <h2>Armonicos del corazón</h2>
                     <canvas id="freqs-chart" style="width:100%;max-width:400px"></canvas>
-                    <script type="text/javascript">
-                        // Crear el contexto del gráfico de frecuencias
-                        var freqsCtx = document.getElementById('freqs-chart').getContext('2d');
-                        var freqsChart = new Chart(freqsCtx, {
-                            type: 'bar',
-                            data: {
-                                labels: freqsHz, // Etiquetas de frecuencias
-                                datasets: [{
-                                    label: 'Frecuencias',
-                                    data: freqsAmplitude, // Datos de frecuencias
-                                    backgroundColor: [
-                                        'rgba(255, 0, 0, 0.5)',
-                                        'rgba(255, 165, 0, 0.5)',
-                                        'rgba(255, 255, 0, 0.5)',
-                                        'rgba(0, 255, 0, 0.5)',
-                                        'rgba(0, 0, 255, 0.5)'
-                                    ],
-                                    borderColor: [
-                                        'rgba(255, 0, 0, 1)',
-                                        'rgba(255, 165, 0, 1)',
-                                        'rgba(255, 255, 0, 1)',
-                                        'rgba(0, 255, 0, 1)',
-                                        'rgba(0, 0, 255, 1)'
-                                    ],
-                                    borderWidth: 1
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: {
-                                    x: {
-                                        display: true,
-                                        title: {
-                                            display: true,
-                                            text: 'Frecuencias'
-                                        }
-                                    },
-                                    y: {
-                                        display: true,
-                                        title: {
-                                            display: true,
-                                            text: 'Amplitud'
-                                        },
-                                        suggestedMin: 0,
-                                        suggestedMax: 100
-                                    }
-                                }
-                            }
-                        });
-                    </script>
+                    <script type="text/javascript" src="./js/frequencies-chart.js"></script>
                 </div>
+
                 <!-- SPO2 -->
                 <div class="card">
-                    <h2>Saturacion de oxígeno</h2>
+                    <h2>Saturación de oxígeno en sangre</h2>
                     <p id="spo2"> - %</p>
                     <script>
                         document.getElementById('spo2').innerHTML = spo;
                     </script>
                     <canvas id="spo2-chart" style="width:100%;max-width:400px"></canvas>
-                    <!-- <script type="text/javascript" src="./js/spo2-chart.js"></script> -->
-                    <script type="text/javascript">
-                        // Crear el contexto del gráfico de SPO2
-                        var spo2Ctx = document.getElementById('spo2-chart').getContext('2d');
-                        var spo2Chart = new Chart(spo2Ctx, {
-                            type: 'line',
-                            data: {
-                                labels: timeArray, // Etiquetas de tiempo
-                                datasets: [{
-                                    label: 'SPO2',
-                                    data: spo2Array, // Datos del SPO2
-                                    backgroundColor: 'rgba(255, 0, 0, 0.5)',
-                                    borderColor: 'rgba(255, 0, 0, 1)',
-                                    borderWidth: 1,
-                                    fill: false,
-                                    lineTension: 0
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: {
-                                    x: {
-                                        display: true,
-                                        title: {
-                                            display: true,
-                                            text: 'Tiempo'
-                                        }
-                                    },
-                                    y: {
-                                        display: true,
-                                        title: {
-                                            display: true,
-                                            text: 'Nivel de oxígeno (%)'
-                                        },
-                                        suggestedMin: 0,
-                                        suggestedMax: 100
-                                    }
-                                }
-                            }
-                        });
-                    </script>
+                    <script type="text/javascript" src="./js/spo2-chart.js"></script>
                 </div>     
             </div>
 

@@ -1,9 +1,14 @@
 #include <U8g2lib.h>
 #include <SPI.h>
+#include <vector>
 #include "WiFi.h"
 #include "SPIFFS.h"
 #include "ESPAsyncWebServer.h"
-#include <vector>
+
+#include "WebPage.h"
+#include "Button.h"
+#include "Display.h"
+#include "GlobalValues.h"
 #include "heartRate.h"
 #include "spo2_algorithm.h"
 #include "arduinoFFT.h"
@@ -20,591 +25,36 @@ using namespace std;
 #define SAMPLES 64 // Número de muestras para la FFT
 #define SAMPLING_FREQUENCY 25 // Frecuencia de muestreo en Hz
 
-// Display pin's definition
+// DISPLAY PINS
 #define SCL 18
 #define SI 23
 #define CS 5
 #define RS 32
 #define RSE 33
 
-// CONSTANTS
-//Pin distribution variables
+// CONSTANTS and VARIABLES
 const int BUTTON_NUMBER = 3;
 const int BPM_PIN = 25;
 const int SPO2_PIN = 26;
 const int FUNDAMENTALS_PIN = 27;
-uint8_t* button_pin;
-//Server vars.
-const char* ssid = "*****";
-const char* password =  "*****";
-// Max30102 object
+const char* ssid = "**"; // SSID of the WiFi
+const char* password =  "**"; // Password of the WiFi
+webPage webPageVar;
 MAX30105 particleSensor;
-//Coeficients for the filter
 float vcoefs1[201];
-//Ir and Red led data
-uint32_t irBuffer[200]; //infrared LED sensor data
-uint32_t redBuffer[200];  //red LED sensor 
-
-// CLASSES AND STRUCTS
-/** Fundamentals frequencies struct
- * 
- * @brief This struct is the fundamentals frequencies of the device.
- *
- */
-struct fundamentalsFreqs{
-    int freqsHz;
-    int amplitude;
-};
-
-/** Global values class
- * 
- * @brief This class is the global values of the device.
- *
- */
-class globalValues {
-    uint32_t* heartRateDataArray;
-    uint32_t* spo2DataArray;
-    int32_t beatsPerMinute, spo2Percentage;
-    vector <fundamentalsFreqs> freqs;
-    
-    public:
-        /** Global values default constructor
-         * 
-         * @brief This function is the constructor of the global values.
-         *
-         */
-        globalValues()
-        {
-            this -> heartRateDataArray = 0;
-            this -> spo2DataArray = 0;
-            this -> beatsPerMinute = 0;
-            this -> spo2Percentage = 0;
-            this -> freqs = {};
-        }
-        
-        /** Global values constructor
-         * 
-         * @brief This function is the constructor of the global values.
-         *
-         * @param heartRateDataArray Heart rate data array.
-         * @param spo2DataArray SPO2 data array.
-         * @param beatsPerMinute Beats per minute.
-         * @param spo2Percentage SPO2 percentage.
-         * @param freqs Fundamentals frequencies.
-         */
-        globalValues(uint32_t* heartRateDataArray, uint32_t* spo2DataArray, int32_t beatsPerMinute, int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
-        {
-            this -> heartRateDataArray = heartRateDataArray;
-            this -> spo2DataArray = spo2DataArray;
-            this -> beatsPerMinute = beatsPerMinute;
-            this -> spo2Percentage = spo2Percentage;
-            this -> freqs = freqs;
-        }
-
-        /** Set heart rate data array function
-         * 
-         * @brief This function sets the heart rate data array.
-         * 
-         * @param heartRateDataArray Heart rate data array.
-         */
-        void setHeartRateDataArray(uint32_t* heartRateDataArray)
-        {
-            this -> heartRateDataArray = heartRateDataArray;
-        }
-
-        /** Set SPO2 data array function
-         * 
-         * @brief This function sets the SPO2 data array.
-         * 
-         * @param spo2DataArray SPO2 data array.
-         */
-        void setSpo2DataArray(uint32_t* spo2DataArray)
-        {
-            this -> spo2DataArray = spo2DataArray;
-        }
-
-        /** Set beats per minute function
-         * 
-         * @brief This function sets the beats per minute.
-         * 
-         * @param beatsPerMinute Beats per minute.
-         */
-        void setBeatsPerMinute(int32_t beatsPerMinute)
-        {
-            this -> beatsPerMinute = beatsPerMinute;
-        }
-
-        /** Set SPO2 percentage function
-         * 
-         * @brief This function sets the SPO2 percentage.
-         * 
-         * @param spo2Percentage SPO2 percentage.
-         */
-        void setSpo2Percentage(int32_t spo2Percentage)
-        {
-            this -> spo2Percentage = spo2Percentage;
-        }
-
-        /** Set fundamentals frequencies function
-         * 
-         * @brief This function sets the fundamentals frequencies.
-         * 
-         * @param freqs Fundamentals frequencies.
-         */
-        void setFreqs(vector<fundamentalsFreqs> freqs)
-        {
-            this -> freqs = freqs;
-        }
-
-        /** Get heart rate data array function
-         * 
-         * @brief This function gets the heart rate data array.
-         * 
-         * @return Heart rate data array.
-         */
-        uint32_t* getHeartRateDataArray()
-        {
-            return heartRateDataArray;
-        }
-
-        /** Get SPO2 data array function
-         * 
-         * @brief This function gets the SPO2 data array.
-         * 
-         * @return SPO2 data array.
-         */
-        uint32_t* getSpo2DataArray()
-        {
-            return spo2DataArray;
-        }
-
-        /** Get beats per minute function
-         * 
-         * @brief This function gets the beats per minute.
-         * 
-         * @return Beats per minute.
-         */
-        int32_t getBeatsPerMinute()
-        {
-            return beatsPerMinute;
-        }
-
-        /** Get SPO2 percentage function
-         * 
-         * @brief This function gets the SPO2 percentage.
-         * 
-         * @return SPO2 percentage.
-         */
-        int32_t getSpo2Percentage()
-        {
-            return spo2Percentage;
-        }
-
-        /** Get fundamentals frequencies function
-         * 
-         * @brief This function gets the fundamentals frequencies.
-         * 
-         * @return Fundamentals frequencies.
-         */
-        vector<fundamentalsFreqs> getFreqs()
-        {
-            return freqs;
-        }
-
-        /** Get JSON function
-         * 
-         * @brief This function gets the JSON of the global values.
-         * 
-         * @return JSON of the global values.
-         */
-        String getJson(int size_of_HR, int size_of_SPO2)
-        {
-            String json = "{";
-            json += "\"heartRateDataArray\": [";
-            for(int i = 0; i < size_of_HR; i++)
-            {
-                json += String(heartRateDataArray[i]);
-                if(i != size_of_HR - 1)
-                {
-                    json += ", ";
-                }
-            }
-            json += "],";
-            json += "\"spo2DataArray\": [";
-            for(int i = 0; i < size_of_SPO2; i++)
-            {
-                json += String(spo2DataArray[i]);
-                if(i != size_of_SPO2 - 1)
-                {
-                    json += ", ";
-                }
-            }
-            json += "],";
-            json += "\"beatsPerMinute\": " + String(beatsPerMinute) + ",";
-            json += "\"spo2Percentage\": " + String(spo2Percentage) + ",";
-            json += "\"freqsAmplitude\": [";
-            for(int i = 0; i < freqs.size(); i++)
-            {
-                json += String(freqs[i].amplitude);
-                if(i != freqs.size() - 1)
-                {
-                    json += ", ";
-                }
-            }
-            json += "],";
-            json += "\"freqsHz\": [";
-            for(int i = 0; i < freqs.size(); i++)
-            {
-                json += String(freqs[i].freqsHz);
-                if(i != freqs.size() - 1)
-                {
-                    json += ", ";
-                }
-            }
-            json += "]";
-            json += "}";
-
-            return json;
-        }
-};
-
-/** Button class
- * 
- * @brief This class is the button of the device.
- *
- */
-class Button{
-  public:
-    //VARS
-    uint8_t pin;                                              
-    bool val_act, val_ant, cambioact, cambioanterior, orden;  
-    //API
-
-    /** Button default constructor
-     * 
-     * @brief This function is the constructor of the button.
-     *
-     */
-    Button(){}
-
-    /** Button constructor
-     * 
-     * @brief This function is the constructor of the button.
-     *
-     * @param PPIN Pin of the button.
-     */
-    Button(uint8_t PPIN)                                      
-    {
-      pin = PPIN;
-      val_ant = 1;
-      orden = 0;
-    }
-
-    /** Button = operator
-     * 
-     * @brief This function is the = operator of the button.
-     *
-     * @param B Button.
-     * @return Button.
-     */
-    Button& operator =(const Button& B)                             
-    {
-      if (this != &B)
-      {
-        this -> pin = B.pin;
-        this -> val_act = B.val_act;
-        this -> val_ant = B.val_ant;
-        this -> cambioact = B.cambioact;
-        this -> cambioanterior = B.cambioanterior;
-        this -> orden = B.orden;
-      }
-      return(*this);
-    } 
-};
-
-/** Display class
- * 
- * @brief This class is the display of the device.
- *
- */
-class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
-    public:
-        uint32_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, halfHeight;
-        uint32_t margin = 8;
-
-        /** Display constructor
-         * 
-         * @brief This function is the constructor of the display.
-         *
-         * @param rotation Rotation of the display.
-         * @param clockPin Clock pin of the display.
-         * @param dataPin Data pin of the display.
-         * @param csPin Chip select pin of the display.
-         * @param dcPin Data/Command pin of the display.
-         * @param resetPin Reset pin of the display.
-         */
-        using U8G2_ST7565_ERC12864_1_4W_SW_SPI::U8G2_ST7565_ERC12864_1_4W_SW_SPI;    
-
-        /** Init function
-         * 
-         * @brief This function initializes the display.
-         *
-         */
-        void init()
-        {
-            // Display initialization
-            this -> begin();                         // Inicialitzate
-            this -> setContrast (10);                // Contraste
-            this -> enableUTF8Print();               // Visualize UTF-8 characters
-            this -> setFont(u8g2_font_6x10_tf);      // Font
-
-            //Axis
-            uint8_t height = this -> getDisplayHeight(); // Get display height : 64
-            uint8_t width = this -> getDisplayWidth(); // Get display width : 128
-            
-            this -> xAxisBegin      = margin/4;
-            this -> xAxisEnd        = width  - width/2;
-            this -> yAxisBegin      = margin/4;
-            this -> yAxisEnd        = height - margin/2;
-            this -> halfHeight      = height/2;
-        }
-
-        /** Draw axis in the display function
-         * 
-         * @brief This function draws the axis in the display.
-         *
-         */
-        void drawAxis()
-        {
-            this -> drawLine(xAxisBegin, yAxisBegin, xAxisBegin, yAxisEnd);                // Y-axis
-            this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd, yAxisEnd);                    // X-axis
-        }
-
-        /** Draw long axis in the display function
-         * 
-         * @brief This function draws the long axis in the display.
-         *
-         */
-        void drawLongAxis()
-        {
-            this -> drawLine(xAxisBegin, yAxisBegin, xAxisBegin, yAxisEnd);                // Y-axis
-            this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd + margin, yAxisEnd);                  // X-axis
-        }
-        
-        /** Print measurements function
-         * 
-         * @brief This function prints the measurements in the display.
-         *
-         * @param value Value to print.
-         * @param choiceBPM Choice of the measurement to print.
-         */
-        void printMeasurements(int32_t value, bool choiceBPM)
-        {
-            this -> setFont(u8g2_font_luBS10_tf);
-            String valueString = String(value);
-
-            if (choiceBPM){
-                this -> setCursor(this -> xAxisEnd + 20, this -> halfHeight + 2*margin);
-                this -> print("BPM");
-            }else {
-                valueString += " %";
-                this -> setCursor(this -> xAxisEnd + 20, this -> halfHeight + 2*margin);
-                this -> print("SPO2");
-            }
-
-            if (valueString.length() >= 3){
-                this -> setCursor(this -> xAxisEnd + 20, this -> halfHeight );
-            }else {
-                this -> setCursor(this -> xAxisEnd + 20 + margin, this -> halfHeight);
-            }
-            this -> print(valueString);
-        }
-        
-        /** Get max value function
-         * 
-         * @brief This function gets the max value.
-         *
-         * @param dataVector Data to get the max value.
-         * @return Max value.
-         */
-        uint32_t getMaxValue(uint32_t* dataVector)
-        {
-            uint32_t max = 0;
-            for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-            {
-                if (dataVector[i] > max)
-                {
-                    max = dataVector[i];
-                }
-            }
-            return max;
-        }
-
-        /** Discretize data function
-         * 
-         * @brief This function discretizes the data.
-         *
-         * @param dataVector Data to discretize.
-         * @return Discretized data.
-         */
-        uint32_t* discretizeData(uint32_t* dataVector, bool choiceBPM)
-        {
-            uint32_t* discretizedDataVector = new uint32_t[xAxisEnd - xAxisBegin];
-            uint32_t max = getMaxValue(dataVector);
-            uint32_t yAxisScale = 1;
-            if (choiceBPM){
-                yAxisScale = uint32_t(max/(halfHeight - margin));
-            } else {
-                yAxisScale = uint32_t(max/(yAxisEnd - margin)); 
-            } 
-
-            if (yAxisScale == 0)yAxisScale = 1;
-
-            for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-            {
-                discretizedDataVector[i] = uint32_t(dataVector[i]/yAxisScale);
-            }
-            return discretizedDataVector;
-        }
-
-        /** Draw data function
-         * 
-         * @brief This function draws the data in the display.
-         *
-         * @param dataVector Data to draw.
-         * @param choiceBPM Choice of the data to draw.
-         */
-        void drawData(uint32_t* dataVector, bool choiceBPM)
-        {
-            uint32_t lastHeight = 0;
-            if (choiceBPM)
-            {
-                for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-                {
-                    this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, halfHeight - dataVector[i]);
-                    lastHeight = halfHeight - dataVector[i];
-                }   
-            }
-            else
-            {
-                for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-                {
-                    this -> drawLine(xAxisBegin + i, lastHeight, xAxisBegin + i, yAxisEnd - margin - dataVector[i]);
-                    lastHeight = yAxisEnd - margin - dataVector[i];
-                }
-            }
-        }
-        
-        /** Update data function
-         * 
-         * @brief This function updates the data in the display.
-         *
-         * @param array Array of data to update.
-         * @param value Value to update.
-         * @param choiceBPM Choice of the data to update.
-         */
-        void updateData(uint32_t* array, int32_t value, bool choiceBPM)
-        {
-            this -> drawAxis();
-            uint32_t* discretizedArray = this -> discretizeData(array, choiceBPM);
-            this -> drawData(discretizedArray, choiceBPM);
-            this -> printMeasurements(value, choiceBPM);
-        }
-        
-        /** Get max amplitude function
-         * 
-         * @brief This function gets the max amplitude.
-         *
-         * @param freqs Vector of frequencies.
-         * @return Max amplitude.
-         */
-        int getMaxAmplitude(const vector<fundamentalsFreqs>& freqs)
-        {
-            int max = 0;
-            for (uint8_t i = 0; i < freqs.size(); i++)
-            {
-                if (freqs[i].amplitude > max)
-                {
-                    max = freqs[i].amplitude;
-                }
-            }
-            return max;
-        }
-
-        /** Draw frequencies function
-         * 
-         * @brief This function draws the frequencies in the display.
-         *
-         * @param freqs Vector of frequencies to draw.
-         */
-        void drawFreqs(const vector<fundamentalsFreqs>& freqs)
-        {
-            int max = getMaxAmplitude(freqs);
-            uint32_t yAxisScale = max/yAxisEnd;
-            uint32_t xAxisScale = (xAxisEnd + margin/2)/freqs.size();
-            uint32_t yAxisStep = yAxisEnd/freqs.size();
-            this -> setFont(u8g2_font_tinyunicode_tf);
-
-            for (uint8_t i = 0; i < freqs.size() ; i++)
-            {
-                // Plot amplitude of each freq
-                uint32_t xAxisPlotBegin = xAxisScale*i + xAxisScale/2;
-                uint32_t xWidth = int(xAxisPlotBegin + xAxisScale/5);
-                uint32_t totalPixelValues = int(freqs[i].amplitude/yAxisScale);
-
-                for (uint32_t j = 0; j < totalPixelValues; j++)
-                {
-                    this -> drawLine(xAxisPlotBegin, yAxisEnd -j, xWidth ,yAxisEnd -j);
-                }
-
-                // Plot freq in Hz
-                this -> setCursor(xAxisEnd + 2*margin, yAxisStep * i + 4/3*margin);
-                this -> print(freqs[i].freqsHz);
-            }
-        }
-
-        /** Update frequencies function
-         * 
-         * @brief This function updates the frequencies in the display.
-         *
-         * @param freqs Vector of frequencies to update.
-         */
-        void updateFreqs(const vector<fundamentalsFreqs>& freqs)
-        {
-            this -> drawLongAxis();
-            this -> drawFreqs(freqs);
-        }
-};
-
-// GLOBAL VARIABLES
-// Global values
-globalValues globalValuesVar;
 vector<fundamentalsFreqs> freqs;
-// U8g2
+uint32_t irBuffer[200]; //infrared LED sensor data
+uint32_t redBuffer[200]; //red LED sensor data
+globalValues globalValuesVar;
 Display display(U8G2_R0, SCL, SI, CS, RS, RSE);
-// Buttons
-Button* buttons;                            
+buttonsArray buttons(BUTTON_NUMBER);                            
 hw_timer_t * timer = NULL;                  
-// Web variables
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
-AsyncWebSocketClient * globalClient = NULL;
-String message = "";
 
-// Button functions declaration
+// FUNCTIONS DECLARATION
 void initButtons();
-void IRAM_ATTR buttonManagement(); 
-
-// SPIFFS functions declaration
+void IRAM_ATTR buttonManagement();
 void initSPIFFS();
 void readfile();
-// Web functions declaration
-void initWeb();
-void initWiFi();
-void initServer();
-void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
-void sendWsMessage(String message); 
-
 // Data functions declaration
 void iniMAX30102();
 void fft();
@@ -637,11 +87,11 @@ void setup()
     //Initzialitaion of buttons
     initButtons();
 
-    // Web initialization
-    initWeb();
-
     // SPIFFS initialization
     initSPIFFS();
+
+    // Web initialization
+    webPageVar.begin(ssid, password);
 
     // Data initialization
     readfile();
@@ -727,61 +177,45 @@ void visualizeData(void * parameter)
             }        
         }
 
-        sendWsMessage(globalValuesVar.getJson((display.xAxisEnd - display.xAxisBegin), (display.xAxisEnd - display.xAxisBegin)));
+        webPageVar.sendWsMessage(globalValuesVar.getJson((display.xAxisEnd - display.xAxisBegin), (display.xAxisEnd - display.xAxisBegin)));
 
         delay(700); //Wait 1000ms
     }
 }
 
-// VISUALIZE DATA FUNCTIONS
-
-// Button functions
-/** Init buttons function
+/** Buttons initialization function
  * 
  * @brief This function initializes the buttons.
  *  
  * @return void.
  *  
- * @details This function initializes the buttons' pins, the buttons' definition and the timer.
+ * @details This function initializes the buttons.
  *  
  * @note This function is called once.
  * 
- * @see setup().
+ * @see buttonManagement().
  * 
  */
-void initButtons()
-{
-    //Buttons pins
-    uint8_t *button_pin_temp = new uint8_t [BUTTON_NUMBER];
-    button_pin_temp[0] = BPM_PIN;                                // Heart rate button
-    button_pin_temp[1] = SPO2_PIN;                               // SPO2 button
-    button_pin_temp[2] = FUNDAMENTALS_PIN;                       // Freqs button
+void initButtons(){
+    // Initilization of buttons
+    int* buttons_pins = new int[BUTTON_NUMBER];
+    buttons_pins[0] = BPM_PIN;
+    buttons_pins[1] = SPO2_PIN;
+    buttons_pins[2] = FUNDAMENTALS_PIN;
+    
+    buttons.begin(buttons_pins);
 
-    button_pin = button_pin_temp;
 
-    //Buttons definition
-    Button *buttons_temp = new Button[BUTTON_NUMBER];
     for(uint8_t i = 0; i < BUTTON_NUMBER; i++)
     {
-        buttons_temp[i] = Button(button_pin[i]);
-    }
-    buttons = buttons_temp;
-
-
-    //Buttons'pins initialization
-    for(uint8_t i = 0; i < BUTTON_NUMBER; i++)
-    {
-        pinMode(button_pin[i], INPUT_PULLUP);
+        pinMode(buttons[i].pin, INPUT_PULLUP);
     }
 
     // Timer initialization
-    timer = timerBegin(0, 80, true);                            //Initiation of timer
-    timerAttachInterrupt(timer, &buttonManagement, true);       //Relate function with timer
-    timerAlarmWrite(timer, 50000, true);                        //Specify time betweem interrupts
-    timerAlarmEnable(timer);                                    //Enable timer
-
-    // Default order
-    buttons[0].orden = 1;
+    timer = timerBegin(0, 80, true);
+    timerAttachInterrupt(timer, &buttonManagement, true);
+    timerAlarmWrite(timer, 100000, true);
+    timerAlarmEnable(timer);
 }
 
 /** Button management function
@@ -838,131 +272,17 @@ void initSPIFFS()
   }
 }
 
-// Web functions
-/** Web initialization function
+/** Data tests initialization function
  * 
- * @brief This function initializes the web.
+ * @brief This function initializes the data tests.
  *  
  * @return void.
  *  
- * @details This function initializes the SPIFFS, the WiFi and the server.
+ * @details This function initializes the data tests.
  *  
  * @note This function is called once.
  * 
- * @see initSPIFFS(), initWiFi(), initServer().
- * 
  */
-void initWeb()
-{
-  initWiFi();
-  initServer();
-}
-
-/** WiFi initialization function
- * 
- * @brief This function initializes the WiFi.
- *  
- * @return void.
- *  
- * @details This function initializes the WiFi.
- *  
- * @note This function is called once.
- * 
- * @see initWeb().
- * 
- */
-void initWiFi()
-{
-  WiFi.begin(ssid, password);
- 
-  Serial.print("Connecting to WiFi..");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.print(".");
-  }
-
-  Serial.println("");
-  Serial.println("IP: ");
-  Serial.print(WiFi.localIP());
-  Serial.println("");
-}
-
-/** Server initialization function
- * 
- * @brief This function initializes the server.
- *  
- * @return void.
- *  
- * @details This function initializes the server.
- *  
- * @note This function is called once.
- * 
- * @see initWeb().
- * 
- */
-void initServer()
-{
-  ws.onEvent(onWsEvent);
-  server.addHandler(&ws);
- 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/index.html", "text/html");
-  });
- 
-  server.begin();
-}
-
-/** Websocket event function
- * 
- * @brief This function manages the websocket events.
- *  
- * @return void.
- *  
- * @details This function manages the websocket events.
- *  
- * @note This function is called when a websocket event is generated.
- * 
- * @see initServer().
- * 
- */
-void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
-{
-  if(type == WS_EVT_CONNECT)
-  {
-    Serial.println("Websocket client connection received");
-    globalClient = client;
-  }
-  else if(type == WS_EVT_DISCONNECT)
-  {
-    Serial.println("Websocket client connection finished");
-    globalClient = NULL;
-  }
-}
-
-/** Send websocket message function
- * 
- * @brief This function sends a websocket message.
- *  
- * @return void.
- *  
- * @details This function sends a websocket message.
- *  
- * @note This function is called when a websocket message is generated.
- * 
- * @see loop().
- * 
- */
-void sendWsMessage(String message)
-{
-  if(globalClient != NULL && globalClient->status() == WS_CONNECTED)
-    {
-        globalClient -> text(message); // '{"tiempo":X, "amplitud":Y, "spo2":Z}'
-        message = "";
-    }
-}
-
-// DATA FUNCTIONS
-
 void fillDataTests()
 {   
     uint32_t* heartRateData_temp = new uint32_t[display.xAxisEnd - display.xAxisBegin];
@@ -992,6 +312,7 @@ void fillDataTests()
         }
     }
 
+    
     for (uint32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
     {
         // Little mountain in the middle with a value of yAxisEnd
@@ -1006,7 +327,7 @@ void fillDataTests()
         }
         else if (i < 5*display.xAxisEnd/8)
         {
-            j-=3;
+            if(j >= 3)j-=3;
             heartRateData_temp[i] = j;
         }
         else if (i < 3*display.xAxisEnd/4)

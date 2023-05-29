@@ -5,7 +5,7 @@ var spo2Chart = new Chart(spo2Ctx, {
     data: {
         labels: timeArray, // Etiquetas de tiempo
         datasets: [{
-            label: 'SPO2',
+            label: 'Saturacion de oxigeno en sangre',
             data: spo2Array, // Datos del SPO2
             backgroundColor: 'rgba(255, 0, 0, 0.5)',
             borderColor: 'rgba(255, 0, 0, 1)',

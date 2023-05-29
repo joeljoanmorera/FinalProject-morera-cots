@@ -9,11 +9,7 @@ body{
     font: 200 14px 'Poppins', sans-serif;   
 }
 h1{
-    background-image: url(./heart.jpg);
-    background-repeat: repeat;
-    -webkit-background-clip: text;
-    background-position: -15% 46%;
-    color: transparent;
+    color: #ffffff;
     font-size: 70px;
 }
 h2{
@@ -22,29 +18,39 @@ h2{
     font-weight: 300;
 }
 p{
-    text-align: justify;
+    text-align: right;
 }
 
-footer{
+/* Classes and Identifiers*/
+#footer{
     background-color: #1d1d1d;
     height: 55px;
     padding-top: 20px;
     text-align: center;
 }
-/* Classes and Identifiers*/
+
 #header{
     height: 85px;
     padding-top: 20px;
     text-align: center;
 }
+.container{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 5px 5px;
+    margin-bottom: 15px;
+    margin-top: 15px;
+}
 .card{
     color: #ffffff;
     font-size: 40px;
-    line-height: 40px;
+    line-height: 20px;
     background-color: #1d1d1d;
-    justify-content: center;
     border-radius: 15px;
+    width: 480px;
     text-align: center;
-    margin: 20px;
-    padding: 10px;
+    margin: 1px;
+    padding: 10px 10px;
 }
