@@ -13,7 +13,8 @@ Button::Button(){}
  *
  * @param PPIN Pin of the button.
  */
-Button::Button(uint8_t PPIN){
+Button::Button(uint8_t PPIN)
+{
       pin = PPIN;
       val_ant = 1;
       orden = 0;
@@ -26,7 +27,8 @@ Button::Button(uint8_t PPIN){
  * @param B Button.
  * @return Button.
  */
-Button& Button::operator =(const Button& B){
+Button& Button::operator =(const Button& B)
+{
     if (this != &B)
       {
         this -> pin = B.pin;
@@ -52,7 +54,8 @@ buttonsArray::buttonsArray(){}
  *
  * @param pNumButtons Number of buttons.
  */
-buttonsArray::buttonsArray(uint8_t pNumButtons){
+buttonsArray::buttonsArray(uint8_t pNumButtons)
+{
     numButtons = pNumButtons;
     buttons = new Button[numButtons];
 }
@@ -64,7 +67,8 @@ buttonsArray::buttonsArray(uint8_t pNumButtons){
  * @param B Button.
  * @return Button.
  */
-buttonsArray& buttonsArray::operator =(const buttonsArray& B){
+buttonsArray& buttonsArray::operator =(const buttonsArray& B)
+{
     if (this != &B)
       {
         this -> numButtons = B.numButtons;
@@ -80,7 +84,8 @@ buttonsArray& buttonsArray::operator =(const buttonsArray& B){
  * @param i Index.
  * @return Button.
  */
-Button& buttonsArray::operator [](int i){
+Button& buttonsArray::operator [](int i)
+{
     return buttons[i];
 }
 
@@ -89,7 +94,8 @@ Button& buttonsArray::operator [](int i){
  * @brief This function is the begin function of the buttonsArray.
  *
  */
-void buttonsArray::begin(int* buttonPins){
+void buttonsArray::begin(int* buttonPins)
+{
     //Buttons definition
     Button *buttons_temp = new Button[numButtons];
     for(uint8_t i = 0; i < numButtons; i++)
@@ -97,7 +103,6 @@ void buttonsArray::begin(int* buttonPins){
         buttons_temp[i] = Button(buttonPins[i]);
     }
     buttons = buttons_temp;
-
 
     //Buttons'pins initialization
     for(uint8_t i = 0; i < numButtons; i++)

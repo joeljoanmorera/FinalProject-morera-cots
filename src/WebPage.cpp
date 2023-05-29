@@ -1,13 +1,12 @@
 #include "WebPage.h"
 
-using namespace std;
-
 /** webPage default constructor
  * 
  * @brief This function is the constructor of the webPage.
  *
  */
-webPage::webPage():server(80), ws("/ws"){
+webPage::webPage():server(80), ws("/ws")
+{
     globalClient = NULL;
 }
 
@@ -24,7 +23,8 @@ webPage::webPage():server(80), ws("/ws"){
  * @see initWiFi(), initServer().
  * 
  */
-void webPage::begin(const char* ssid, const char* password){
+void webPage::begin(const char* ssid, const char* password)
+{
     initWiFi(ssid, password);
     initServer();
 }
@@ -73,6 +73,7 @@ void webPage::initWiFi(const char* ssid, const char* password)
  */
 void webPage::initServer()
 {
+    // websocker definition
     ws.onEvent([this](  AsyncWebSocket *server, AsyncWebSocketClient *client, 
                         AwsEventType type, void *arg, uint8_t *data, size_t len){
         // Call the onWsEvent member function of the current instance of the webPage class
@@ -81,10 +82,30 @@ void webPage::initServer()
 
     server.addHandler(&ws);
     
+    // define html file
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(SPIFFS, "/index.html", "text/html");
     });
+
+    // define css files
+    server.on("/css/stylesheet.css", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(SPIFFS, "/css/stylesheet.css", "text/css");
+    });
     
+    // define js files
+    server.on("/js/main.js", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(SPIFFS, "/js/main.js", "text/javascript");
+    });
+    server.on("/js/heartrate-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(SPIFFS, "/js/heartrate-chart.js", "text/javascript");
+    });
+    server.on("/js/frequencies-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(SPIFFS, "/js/frequencies-chart.js", "text/javascript");
+    });
+    server.on("/js/spo2-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(SPIFFS, "/js/spo2-chart.js", "text/javascript");
+    });
+
     server.begin();
 }
 

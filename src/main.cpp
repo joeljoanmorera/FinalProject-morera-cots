@@ -4,7 +4,7 @@
 #include "WiFi.h"
 #include "SPIFFS.h"
 #include "ESPAsyncWebServer.h"
-// classes and structs
+
 #include "WebPage.h"
 #include "Button.h"
 #include "Display.h"
@@ -12,7 +12,7 @@
 
 using namespace std;
 
-// Pin's definition
+// DISPLAY PINS
 #define SCL 18
 #define SI 23
 #define CS 5
@@ -24,25 +24,19 @@ const int BUTTON_NUMBER = 3;
 const int BPM_PIN = 25;
 const int SPO2_PIN = 26;
 const int FUNDAMENTALS_PIN = 27;
-const char* ssid = "**"; // SSID of the WiFi
-const char* password =  "**"; // Password of the WiFi
+const char* ssid = "MiFibra-F392"; // SSID of the WiFi
+const char* password =  "5QUisHGE"; // Password of the WiFi
 webPage webPageVar;
 globalValues globalValuesVar;
 Display display(U8G2_R0, SCL, SI, CS, RS, RSE);
 buttonsArray buttons(BUTTON_NUMBER);                            
 hw_timer_t * timer = NULL;                  
 
-// Button functions declaration
+// FUNCTIONS DECLARATION
 void initButtons();
-void IRAM_ATTR buttonManagement(); 
-
-// SPIFFS functions declaration
+void IRAM_ATTR buttonManagement();
 void initSPIFFS();
-
-// Data for tests functions declaration
 void fillDataTests();
-
-// Visualize data functions declaration
 void visualizeData(void * parameter);
 
 /** Setup function
@@ -294,7 +288,7 @@ void fillDataTests()
         }
         else if (i < 5*display.xAxisEnd/8)
         {
-            j-=3;
+            if(j >= 3)j-=3;
             heartRateData_temp[i] = j;
         }
         else if (i < 3*display.xAxisEnd/4)

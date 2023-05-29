@@ -24,7 +24,8 @@ globalValues::globalValues()
  * @param spo2Percentage SPO2 percentage.
  * @param freqs Fundamentals frequencies.
  */
-globalValues::globalValues(uint32_t* heartRateDataArray, uint32_t* spo2DataArray, int32_t beatsPerMinute, int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
+globalValues::globalValues( uint32_t* heartRateDataArray, uint32_t* spo2DataArray, 
+                            int32_t beatsPerMinute, int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
 {
     this -> heartRateDataArray = heartRateDataArray;
     this -> spo2DataArray = spo2DataArray;
