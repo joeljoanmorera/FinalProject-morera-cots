@@ -46,7 +46,9 @@ class globalValues {
     uint32_t* spo2DataArray;
     int32_t beatsPerMinute, spo2Percentage;
     vector <fundamentalsFreqs> freqs;
-    
+    int pointerHeartRateDataArray = 0;
+    int pointerSpo2DataArray = 0;
+
     public:
         /** Global values default constructor
          * 
@@ -244,6 +246,52 @@ class globalValues {
             json += "]";
             json += "}";
 
+            return json;
+        }
+
+        String getJsonSingleValues(int size_of_heartrate, int size_of_spo2)
+        {
+            if (pointerHeartRateDataArray == (size_of_heartrate - 1))
+            {
+                //pointerHeartRateDataArray --;
+                pointerHeartRateDataArray = 0;
+            }
+            if (pointerSpo2DataArray == (size_of_spo2 - 1)){
+                //pointerSpo2DataArray --;
+                pointerSpo2DataArray = 0; 
+            }
+            String json = "{";
+            json += "\"heartRateData\":" + String(heartRateDataArray[pointerHeartRateDataArray]) + ",";
+            json += "\"spo2Data\": " + String(spo2DataArray[pointerSpo2DataArray]) + ", ";
+            json += "\"beatsPerMinute\": " + String(beatsPerMinute) + ", ";
+            json += "\"spo2Percentage\": " + String(spo2Percentage) + ", ";
+            // Freqs
+            json += "\"freqsAmplitude\": [";
+            for(int i = 0; i < freqs.size(); i++)
+            {
+                json += String(freqs[i].amplitude);
+                if(i != freqs.size() - 1)
+                {
+                    json += ", ";
+                }
+            }
+            json += "], ";
+            json += "\"freqsHz\": [";
+            for(int i = 0; i < freqs.size(); i++)
+            {
+                json += String(freqs[i].freqsHz);
+                if(i != freqs.size() - 1)
+                {
+                    json += ", ";
+                }
+            }
+            json += "]";
+            json += "}";
+
+            //Increment pointers
+            pointerHeartRateDataArray ++;
+            pointerSpo2DataArray++;
+            
             return json;
         }
 };
