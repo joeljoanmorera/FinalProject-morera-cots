@@ -23,9 +23,10 @@ globalValues::globalValues()
  * @param beatsPerMinute Beats per minute.
  * @param spo2Percentage SPO2 percentage.
  * @param freqs Fundamentals frequencies.
+ * 
  */
-globalValues::globalValues( uint32_t* heartRateDataArray, uint32_t* spo2DataArray, 
-                            int32_t beatsPerMinute, int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
+globalValues::globalValues( uint32_t* heartRateDataArray, uint32_t* spo2DataArray, int32_t beatsPerMinute,
+                            int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
 {
     this -> heartRateDataArray = heartRateDataArray;
     this -> spo2DataArray = spo2DataArray;
@@ -39,6 +40,7 @@ globalValues::globalValues( uint32_t* heartRateDataArray, uint32_t* spo2DataArra
  * @brief This function sets the heart rate data array.
  * 
  * @param heartRateDataArray Heart rate data array.
+ * 
  */
 void globalValues::setHeartRateDataArray(uint32_t* heartRateDataArray)
 {
@@ -50,6 +52,7 @@ void globalValues::setHeartRateDataArray(uint32_t* heartRateDataArray)
  * @brief This function sets the SPO2 data array.
  * 
  * @param spo2DataArray SPO2 data array.
+ * 
  */
 void globalValues::setSpo2DataArray(uint32_t* spo2DataArray)
 {
@@ -61,6 +64,7 @@ void globalValues::setSpo2DataArray(uint32_t* spo2DataArray)
  * @brief This function sets the beats per minute.
  * 
  * @param beatsPerMinute Beats per minute.
+ * 
  */
 void globalValues::setBeatsPerMinute(int32_t beatsPerMinute)
 {
@@ -72,6 +76,7 @@ void globalValues::setBeatsPerMinute(int32_t beatsPerMinute)
  * @brief This function sets the SPO2 percentage.
  * 
  * @param spo2Percentage SPO2 percentage.
+ * 
  */
 void globalValues::setSpo2Percentage(int32_t spo2Percentage)
 {
@@ -83,6 +88,7 @@ void globalValues::setSpo2Percentage(int32_t spo2Percentage)
  * @brief This function sets the fundamentals frequencies.
  * 
  * @param freqs Fundamentals frequencies.
+ * 
  */
 void globalValues::setFreqs(vector<fundamentalsFreqs> freqs)
 {
@@ -94,6 +100,7 @@ void globalValues::setFreqs(vector<fundamentalsFreqs> freqs)
  * @brief This function gets the heart rate data array.
  * 
  * @return Heart rate data array.
+ * 
  */
 uint32_t* globalValues::getHeartRateDataArray()
 {
@@ -105,6 +112,7 @@ uint32_t* globalValues::getHeartRateDataArray()
  * @brief This function gets the SPO2 data array.
  * 
  * @return SPO2 data array.
+ * 
  */
 uint32_t* globalValues::getSpo2DataArray()
 {
@@ -116,6 +124,7 @@ uint32_t* globalValues::getSpo2DataArray()
  * @brief This function gets the beats per minute.
  * 
  * @return Beats per minute.
+ * 
  */
 int32_t globalValues::getBeatsPerMinute()
 {
@@ -127,6 +136,7 @@ int32_t globalValues::getBeatsPerMinute()
  * @brief This function gets the SPO2 percentage.
  * 
  * @return SPO2 percentage.
+ * 
  */
 int32_t globalValues::getSpo2Percentage()
 {
@@ -138,6 +148,7 @@ int32_t globalValues::getSpo2Percentage()
  * @brief This function gets the fundamentals frequencies.
  * 
  * @return Fundamentals frequencies.
+ * 
  */
 vector<fundamentalsFreqs> globalValues::getFreqs()
 {
@@ -148,7 +159,11 @@ vector<fundamentalsFreqs> globalValues::getFreqs()
  * 
  * @brief This function gets the JSON of the global values.
  * 
+ * @param size_of_heartrate Size of the heart rate data array.
+ * @param size_of_spo2 Size of the SPO2 data array.
+ * 
  * @return JSON of the global values.
+ * 
  */
 String globalValues::getJson(int size_of_heartrate, int size_of_spo2)
 {
@@ -166,7 +181,6 @@ String globalValues::getJson(int size_of_heartrate, int size_of_spo2)
     json += "\"spo2Data\": " + String(spo2DataArray[pointerSpo2DataArray]) + ", ";
     json += "\"beatsPerMinute\": " + String(beatsPerMinute) + ", ";
     json += "\"spo2Percentage\": " + String(spo2Percentage) + ", ";
-    // Freqs
     json += "\"freqsAmplitude\": [";
     for(int i = 0; i < freqs.size(); i++)
     {
@@ -189,8 +203,7 @@ String globalValues::getJson(int size_of_heartrate, int size_of_spo2)
     json += "]";
     json += "}";
 
-    //Increment pointers
-    pointerHeartRateDataArray ++;
+    pointerHeartRateDataArray++;
     pointerSpo2DataArray++;
     
     return json;

@@ -6,6 +6,16 @@
 #include <WiFi.h>
 #include <SPIFFS.h>
 
+/** Web page class 
+ * @brief Class to manage the web page
+ * 
+ * @details This class is used to manage the web page
+ * 
+ * @param server AsyncWebServer object
+ * @param ws AsyncWebSocket object
+ * @param globalClient AsyncWebSocketClient object
+ * 
+ */
 class webPage{
     AsyncWebServer server;
     AsyncWebSocket ws;
@@ -13,7 +23,7 @@ class webPage{
 
     public:
 
-        webPage();
+        webPage(int port = 80);
 
         void begin(const char* ssid, const char* password);
 
@@ -21,12 +31,8 @@ class webPage{
 
         void initServer();
 
-        void onWsEvent (AsyncWebSocket * server, 
-                            AsyncWebSocketClient * client,
-                            AwsEventType type, 
-                            void * arg,
-                            uint8_t *data,
-                            size_t len);
+        void onWsEvent (AsyncWebSocket * server, AsyncWebSocketClient * client, 
+                        AwsEventType type, void * arg, uint8_t *data, size_t len);
 
         void sendWsMessage(String message);
 };

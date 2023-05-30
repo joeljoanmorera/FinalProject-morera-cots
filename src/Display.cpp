@@ -24,26 +24,112 @@ void Display::init()
     halfHeight      = height/2;
 }
 
+/** Update data function
+ * 
+ * @brief This function updates the data in the display.
+ *
+ * @param array Array of data to update.
+ * @param value Value to update.
+ * @param choiceBPM Choice of the data to update.
+ */
+void Display::updateData(uint32_t* array, int32_t value, bool choiceBPM)
+{
+    this -> drawAxis();
+    uint32_t* discretizedArray = this -> discretizeData(array, choiceBPM);
+    this -> drawData(discretizedArray, choiceBPM);
+    this -> printMeasurements(value, choiceBPM);
+}
+ 
 /** Draw axis in the display function
  * 
  * @brief This function draws the axis in the display.
+ * 
+ * @param longAxis Choice of the X axis to draw. By default is false.
  *
  */
-void Display::drawAxis()
+void Display::drawAxis(bool longAxis = false)
 {
-    this -> drawLine(xAxisBegin, yAxisBegin, xAxisBegin, yAxisEnd);                // Y-axis
-    this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd, yAxisEnd);                    // X-axis
+    this -> drawLine(xAxisBegin, yAxisBegin, xAxisBegin, yAxisEnd);                     // Y-axis
+    if (longAxis) this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd + margin, yAxisEnd);  // X-long-axis
+    else this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd, yAxisEnd);                    // X-axis
 }
 
-/** Draw long axis in the display function
+/** Discretize data function
  * 
- * @brief This function draws the long axis in the display.
+ * @brief This function discretizes the data.
  *
+ * @param dataVector Data to discretize.
+ * @param choiceBPM Choice of the data to discretize.
+ * 
+ * @return Discretized data.
  */
-void Display::drawLongAxis()
+uint32_t* Display::discretizeData(uint32_t* dataVector, bool choiceBPM)
 {
-    this -> drawLine(xAxisBegin, yAxisBegin, xAxisBegin, yAxisEnd);                // Y-axis
-    this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd + margin, yAxisEnd);                  // X-axis
+    uint32_t* discretizedDataVector = new uint32_t[xAxisEnd - xAxisBegin];
+    uint32_t max = getMaxValue(dataVector);
+    uint32_t yAxisScale = 1;
+    if (choiceBPM){
+        yAxisScale =uint32_t(max/(halfHeight - margin));
+    } else {
+        yAxisScale = uint32_t(max/(yAxisEnd - margin)); 
+    } 
+
+    if (yAxisScale == 0)yAxisScale = 1;
+
+    for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+    {
+        discretizedDataVector[i] = uint32_t(dataVector[i]/yAxisScale);
+    }
+    return discretizedDataVector;
+}
+
+/** Get max value function
+ * 
+ * @brief This function gets the max value.
+ *
+ * @param dataVector Data to get the max value.
+ * 
+ * @return Max value.
+ */
+uint32_t Display::getMaxValue(uint32_t* dataVector)
+{
+    uint32_t max = 0;
+    for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+    {
+        if (dataVector[i] > max)
+        {
+            max = dataVector[i];
+        }
+    }
+    return max;
+}
+
+/** Draw data function
+ * 
+ * @brief This function draws the data in the display.
+ *
+ * @param dataVector Data to draw.
+ * @param choiceBPM Choice of the data to draw.
+ */
+void Display::drawData(uint32_t* dataVector, bool choiceBPM)
+{
+    uint32_t lastHeight = 0;
+    if (choiceBPM)
+    {
+        for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+        {
+            this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, halfHeight - dataVector[i]);
+            lastHeight = halfHeight - dataVector[i];
+        }   
+    }
+    else
+    {
+        for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+        {
+            this -> drawLine(xAxisBegin + i, lastHeight, xAxisBegin + i, yAxisEnd - margin - dataVector[i]);
+            lastHeight = yAxisEnd - margin - dataVector[i];
+        }
+    }
 }
 
 /** Print measurements function
@@ -75,115 +161,16 @@ void Display::printMeasurements(int32_t value, bool choiceBPM)
     this -> print(valueString);
 }
 
-/** Get max value function
+/** Update frequencies function
  * 
- * @brief This function gets the max value.
+ * @brief This function updates the frequencies in the display.
  *
- * @param dataVector Data to get the max value.
- * @return Max value.
+ * @param freqs Vector of frequencies to update.
  */
-uint32_t Display::getMaxValue(uint32_t* dataVector)
+void Display::updateFreqs(const vector<fundamentalsFreqs>& freqs)
 {
-    uint32_t max = 0;
-    for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-    {
-        if (dataVector[i] > max)
-        {
-            max = dataVector[i];
-        }
-    }
-    return max;
-}
-
-/** Discretize data function
- * 
- * @brief This function discretizes the data.
- *
- * @param dataVector Data to discretize.
- * @return Discretized data.
- */
-uint32_t* Display::discretizeData(uint32_t* dataVector, bool choiceBPM)
-{
-    uint32_t* discretizedDataVector = new uint32_t[xAxisEnd - xAxisBegin];
-    uint32_t max = getMaxValue(dataVector);
-    uint32_t yAxisScale = 1;
-    if (choiceBPM){
-        yAxisScale =uint32_t(max/(halfHeight - margin));
-    } else {
-        yAxisScale = uint32_t(max/(yAxisEnd - margin)); 
-    } 
-
-    if (yAxisScale == 0)yAxisScale = 1;
-
-    for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-    {
-        discretizedDataVector[i] = uint32_t(dataVector[i]/yAxisScale);
-    }
-    return discretizedDataVector;
-}
-
-/** Draw data function
- * 
- * @brief This function draws the data in the display.
- *
- * @param dataVector Data to draw.
- * @param choiceBPM Choice of the data to draw.
- */
-void Display::drawData(uint32_t* dataVector, bool choiceBPM)
-{
-    uint32_t lastHeight = 0;
-    if (choiceBPM)
-    {
-        for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-        {
-            this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, halfHeight - dataVector[i]);
-            lastHeight = halfHeight - dataVector[i];
-        }   
-    }
-    else
-    {
-        for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-        {
-            this -> drawLine(xAxisBegin + i, lastHeight, xAxisBegin + i, yAxisEnd - margin - dataVector[i]);
-            lastHeight = yAxisEnd - margin - dataVector[i];
-        }
-    }
-}
-
-/** Update data function
- * 
- * @brief This function updates the data in the display.
- *
- * @param array Array of data to update.
- * @param value Value to update.
- * @param choiceBPM Choice of the data to update.
- */
-void Display::updateData(uint32_t* array, int32_t value, bool choiceBPM)
-{
-    this -> drawAxis();
-    uint32_t* discretizedArray = this -> discretizeData(array, choiceBPM);
-    this -> drawData(discretizedArray, choiceBPM);
-    this -> printMeasurements(value, choiceBPM);
-}
-
-/** Get max amplitude function
- * 
- * @brief This function gets the max amplitude.
- *
- * @param freqs Vector of frequencies.
- * @return Max amplitude.
- */
-int Display::getMaxAmplitude(const vector<fundamentalsFreqs>& freqs)
-{
-    int max = 0;
-    for (uint8_t i = 0; i < freqs.size(); i++)
-    {
-        if (freqs[i].amplitude > max)
-        {
-            max = freqs[i].amplitude;
-        }
-    }
-    return max;
+    this -> drawAxis(true);
+    this -> drawFreqs(freqs);
 }
 
 /** Draw frequencies function
@@ -218,14 +205,23 @@ void Display::drawFreqs(const vector<fundamentalsFreqs>& freqs)
     }
 }
 
-/** Update frequencies function
+/** Get max amplitude function
  * 
- * @brief This function updates the frequencies in the display.
+ * @brief This function gets the max amplitude.
  *
- * @param freqs Vector of frequencies to update.
+ * @param freqs Vector of frequencies.
+ * 
+ * @return Max amplitude.
  */
-void Display::updateFreqs(const vector<fundamentalsFreqs>& freqs)
+int Display::getMaxAmplitude(const vector<fundamentalsFreqs>& freqs)
 {
-    this -> drawLongAxis();
-    this -> drawFreqs(freqs);
+    int max = 0;
+    for (uint8_t i = 0; i < freqs.size(); i++)
+    {
+        if (freqs[i].amplitude > max)
+        {
+            max = freqs[i].amplitude;
+        }
+    }
+    return max;
 }

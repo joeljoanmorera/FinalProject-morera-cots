@@ -3,9 +3,11 @@
 /** webPage default constructor
  * 
  * @brief This function is the constructor of the webPage.
+ * 
+ * @param port Port number.
  *
  */
-webPage::webPage():server(80), ws("/ws")
+webPage::webPage(int port = 80):server(port), ws("/ws")
 {
     globalClient = NULL;
 }
@@ -18,8 +20,6 @@ webPage::webPage():server(80), ws("/ws")
  *  
  * @details This function initializes the WiFi and the server.
  *  
- * @note This function is called once.
- * 
  * @see initWiFi(), initServer().
  * 
  */
@@ -37,8 +37,6 @@ void webPage::begin(const char* ssid, const char* password)
  *  
  * @details This function initializes the WiFi.
  *  
- * @note This function is called once.
- * 
  * @see begin().
  * 
  */
@@ -66,9 +64,7 @@ void webPage::initWiFi(const char* ssid, const char* password)
  *  
  * @details This function initializes the server.
  *  
- * @note This function is called once.
- * 
- * @see begin().
+ * @see begin(), onWsEvent().
  * 
  */
 void webPage::initServer()
@@ -117,8 +113,6 @@ void webPage::initServer()
  *  
  * @details This function is the event function of the websocket.
  *  
- * @note This function is called when the websocket receives a message.
- * 
  * @see begin(), initServer().
  * 
  */
@@ -144,8 +138,6 @@ void webPage::onWsEvent (AsyncWebSocket * server, AsyncWebSocketClient * client,
  * @return void.
  *  
  * @details This function sends a websocket message.
- *  
- * @note This function is called when a websocket message is generated.
  * 
  */
 void webPage::sendWsMessage(String message)

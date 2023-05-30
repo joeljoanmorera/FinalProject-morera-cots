@@ -4,13 +4,13 @@ const maxDataLength = 32;
 let heartRateArray = [];
 let spo2Array = [];
 let timeArray = [];
-let rawTimes = [];
 let freqsHz = [];
 let freqsAmplitude = [];
 
 // Last values
 let lastFreqsHz = [];
 let lastFreqsAmplitude = [];
+let lastRawTime = 0;
 
 // Values vars
 let bpm = "Calculating BPM...";
@@ -40,30 +40,22 @@ socket.onmessage = function (event) {
     spo2Array.push(newspo2Data);
     if (spo2Array.length >= maxDataLength) spo2Array.shift();
     
-    if(rawTimes.length != 0)
+    if(lastRawTime != 0)
     {
         var actualTime = Date.now();
-
-        var millisTimeDifference = actualTime - rawTimes[rawTimes.length - 1];
+        var millisTimeDifference = actualTime - lastRawTime;
         var timeDifferenceBetweenData = millisTimeDifference/1000;
-        console.log("timeDifferenceBetweenData: " + timeDifferenceBetweenData);
-        // calculate accomulated time and round it to 3 decimals
-        var accomulatedTime = Math.floor((timeArray[timeArray.length - 1] + timeDifferenceBetweenData)*1000)/1000;
-        console.log("accomulatedTime: " + accomulatedTime);
         
-        rawTimes.push(actualTime);
+        // calculate accomulated time and round it to 3 decimals
+        var accomulatedTime = Math.floor((timeArray[timeArray.length - 1] + timeDifferenceBetweenData)*1000)/1000;        
+        lastRawTime = actualTime;
         timeArray.push(accomulatedTime);
-    }
-    else
-    {
-        var initialTime = Date.now();
-        rawTimes.push(initialTime);
+    } else {
+        lastRawTime = Date.now();
         timeArray.push(0);
     }
-    if (timeArray.length > maxDataLength) {
-        rawTimes.shift();
-        timeArray.shift();
-    }
+    if ( timeArray.length > maxDataLength ) timeArray.shift();
+    
     cardiogramaChart.update();
     spo2Chart.update();
     
