@@ -13,8 +13,8 @@ let lastFreqsAmplitude = [];
 let lastRawTime = 0;
 
 // Values vars
-let bpm = "Calculating BPM...";
-let spo = "Calculating SPO2...";
+let beatsPerMinuteValue = "Calculating BPM...";
+let spo2PercentageValue = "Calculating SPO2...";
 
 // Conectar al WebSocket del ESP32
 var socket = new WebSocket('ws://' + location.hostname + '/ws');
@@ -24,12 +24,12 @@ socket.onmessage = function (event) {
 
     // update bpm and spo2
     var beatsPerMinute = jsonData.beatsPerMinute;
-    bpm = beatsPerMinute + " BPM";
-    document.getElementById('heartrate').innerHTML = bpm;
+    beatsPerMinuteValue = beatsPerMinute + " BPM";
+    document.getElementById('heartrate').innerHTML = beatsPerMinuteValue;
     
     var spo2Percentage = jsonData.spo2Percentage;
-    spo = spo2Percentage + " %";
-    document.getElementById('spo2').innerHTML = spo;
+    spo2PercentageValue = spo2Percentage + " %";
+    document.getElementById('spo2').innerHTML = spo2PercentageValue;
 
     // update heartRateArray, spo2Array and timeArray
     var newHeartRateData = jsonData.heartRateData;

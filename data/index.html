@@ -20,29 +20,35 @@
     <div class="container">
         <!-- Heartrate -->
         <div class="card">
-            <h2>Frecuencia cardíaca</h2>
-            <p id="heartrate"> - BPM</p>
-            <script>
-                document.getElementById('heartrate').innerHTML = bpm;
-            </script>
-            <canvas id="cardiograma-chart"></canvas>
-            <script type="text/javascript" src="./js/heartrate-chart.js"></script>
+            <div class="card-header">
+                <h2>Frecuencia cardíaca</h2>
+                <p id="heartrate"> - BPM</p>
+            </div> 
+            <div class="card-body">
+                <canvas id="cardiograma-chart"></canvas>
+                <script type="text/javascript" src="./js/heartrate-chart.js"></script>
+            </div>
         </div>
         <!-- Freqs -->
         <div class="card">
-            <h2>Armonicos del corazón</h2>
-            <canvas id="freqs-chart"></canvas>
-            <script type="text/javascript" src="./js/frequencies-chart.js"></script>
+            <div class="card-header">
+                <h2>Armonicos del corazón</h2>
+            </div>
+            <div class="card-body">
+                <canvas id="freqs-chart"></canvas>  
+                <script type="text/javascript" src="./js/frequencies-chart.js"></script>
+            </div>
         </div>
         <!-- SPO2 -->
         <div class="card">
-            <h2>Saturación de oxígeno en sangre</h2>
-            <p id="spo2"> - %</p>
-            <script>
-                document.getElementById('spo2').innerHTML = spo;
-            </script>
-            <canvas id="spo2-chart"></canvas>
-            <script type="text/javascript" src="./js/spo2-chart.js"></script>
+            <div class="card-header">
+                <h2>Saturación de oxígeno en sangre</h2>
+                <p id="spo2"> - %</p>
+            </div>
+            <div class="card-body">
+                <canvas id="spo2-chart"></canvas>
+                <script type="text/javascript" src="./js/spo2-chart.js"></script>  
+            </div>
         </div>     
     </div>
     <!-- Footer -->

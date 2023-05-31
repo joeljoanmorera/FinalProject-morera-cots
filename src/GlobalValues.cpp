@@ -28,7 +28,7 @@ globalValues::globalValues()
  * 
  */
 globalValues::globalValues( vector<uint32_t> heartRateDataArray, vector<uint32_t> spo2DataArray, int32_t beatsPerMinute,
-                            int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
+                            int32_t spo2Percentage, vector<fundamentalsFreqs> freqs )
 {
     this -> heartRateDataArray = heartRateDataArray;
     this -> spo2DataArray = spo2DataArray;
@@ -44,7 +44,7 @@ globalValues::globalValues( vector<uint32_t> heartRateDataArray, vector<uint32_t
  * @param heartRateDataArray Heart rate data array.
  * 
  */
-void globalValues::setHeartRateDataArray ( vector <uint32_t>heartRateDataArray )
+void globalValues::setHeartRateDataArray ( vector<uint32_t> heartRateDataArray )
 {
     this -> heartRateDataArray = heartRateDataArray;
 }
@@ -57,11 +57,11 @@ void globalValues::setHeartRateDataArray ( vector <uint32_t>heartRateDataArray )
  * @param size Size of the heart rate data array.
  * 
  */
-void globalValues::setHeartRateDataArray(uint32_t* pHeartRateDataArray, uint32_t size)
+void globalValues::pushBackHeartRateDataArray ( uint32_t* pHeartRateDataArray, uint32_t size )
 {  
     for (uint32_t i = 0; i < size; i++)
     {
-        this -> heartRateDataArray.push_back (pHeartRateDataArray[i]);
+        this -> heartRateDataArray.push_back ( pHeartRateDataArray[i] );
     }
 }
 
@@ -85,11 +85,11 @@ void globalValues::setSpo2DataArray ( vector<uint32_t> spo2DataArray )
  * @param size Size of the SPO2 data array.
  * 
  */
-void globalValues::setSpo2DataArray(uint32_t* pSpo2DataArray, uint32_t size)
+void globalValues::pushBackSpo2DataArray ( uint32_t* pSpo2DataArray, uint32_t size )
 {
     for (uint32_t i = 0; i < size; i++)
     {
-        this -> spo2DataArray.push_back(pSpo2DataArray[i]);
+        this -> spo2DataArray.push_back ( pSpo2DataArray[i] );
     }
 }
 
@@ -100,7 +100,7 @@ void globalValues::setSpo2DataArray(uint32_t* pSpo2DataArray, uint32_t size)
  * @param beatsPerMinute Beats per minute.
  * 
  */
-void globalValues::setBeatsPerMinute(int32_t beatsPerMinute)
+void globalValues::setBeatsPerMinute ( int32_t beatsPerMinute )
 {
     this -> beatsPerMinute = beatsPerMinute;
 }
@@ -112,7 +112,7 @@ void globalValues::setBeatsPerMinute(int32_t beatsPerMinute)
  * @param spo2Percentage SPO2 percentage.
  * 
  */
-void globalValues::setSpo2Percentage(int32_t spo2Percentage)
+void globalValues::setSpo2Percentage ( int32_t spo2Percentage )
 {
     this -> spo2Percentage = spo2Percentage;
 }
@@ -124,7 +124,7 @@ void globalValues::setSpo2Percentage(int32_t spo2Percentage)
  * @param freqs Fundamentals frequencies.
  * 
  */
-void globalValues::setFreqs(vector<fundamentalsFreqs> freqs)
+void globalValues::setFreqs ( vector<fundamentalsFreqs> freqs )
 {
     this -> freqs = freqs;
 }
@@ -150,12 +150,12 @@ vector<uint32_t> globalValues::getHeartRateDataArray()
  * @return Heart rate data array.
  * 
  */
-vector<uint32_t> globalValues::getHeartRateDataArray(uint32_t N)
+vector<uint32_t> globalValues::getHeartRateDataArray ( uint32_t N )
 {
     vector<uint32_t> result;
     for (uint32_t i = 0; i < N; i++)
     {
-        result.push_back(heartRateDataArray[i]);
+        result.push_back ( heartRateDataArray[i] );
     }
     return result;
 }
@@ -198,12 +198,12 @@ vector<uint32_t> globalValues::getSpo2DataArray()
  * @return SPO2 data array.
  * 
  */
-vector<uint32_t> globalValues::getSpo2DataArray(uint32_t N)
+vector<uint32_t> globalValues::getSpo2DataArray ( uint32_t N )
 {
     vector<uint32_t> result;
     for (uint32_t i = 0; i < N; i++)
     {
-        result.push_back(spo2DataArray[i]);
+        result.push_back ( spo2DataArray[i] );
     }
     return result;
 }

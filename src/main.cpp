@@ -38,8 +38,8 @@ const int BPM_PIN = 26;
 const int SPO2_PIN = 25;
 const int FUNDAMENTALS_PIN = 27;
 const int enoughSamples = 200;
-const char* ssid = "iPhone de JJ";      // SSID of the WiFi
-const char* password = "onayago1"; // Password of the WiFi
+const char* ssid = "MiFibra-F392";      // SSID of the WiFi
+const char* password = "5QUisHGE"; // Password of the WiFi
 globalValues globalValuesVar;
 globalDataVisualizer dataVisualizer( U8G2_R0, SCL, SI, CS, RS, RSE );
 hw_timer_t* timer = NULL;
@@ -52,15 +52,15 @@ uint32_t irBuffer[enoughSamples];     //infrared LED sensor data
 uint32_t redBuffer[enoughSamples];    //red LED sensor data
 
 // FUNCTIONS DECLARATION
-void readData(void * parameter);
+void readData( void * parameter );
 void initGlobalVisualizer();
-void visualizeData(void * parameter);
+void visualizeData( void * parameter );
 void IRAM_ATTR readButtonsWrapper();
 void initSPIFFS();
 void readFile();
 void initMAX30102();
 void fft();
-void fillDataTests();
+void fillDataTests( void * parameter );
 
 /** Setup function
  * 
@@ -87,7 +87,14 @@ void setup()
     initGlobalVisualizer();
     
     // Data tests initialization
-    fillDataTests();
+    xTaskCreatePinnedToCore(
+                    fillDataTests,   /* Task function. */
+                    "fillDataTests", /* name of task. */
+                    10000,        /* Stack size of task */
+                    NULL,         /* parameter of the task */
+                    1,            /* priority of the task */
+                    NULL,         /* Task handle to keep track of created task */
+                    0);           /* pin task to core 1 */
 
     // Data initialization
     // readFile();
@@ -107,7 +114,7 @@ void setup()
     xTaskCreatePinnedToCore(
                     visualizeData,   /* Task function. */
                     "visualizeData", /* name of task. */
-                    100000,        /* Stack size of task */
+                    10000,        /* Stack size of task */
                     NULL,         /* parameter of the task */
                     1,            /* priority of the task */
                     NULL,         /* Task handle to keep track of created task */
@@ -267,8 +274,8 @@ void readData ( void * parameter )
                     globalValuesVar.setSpo2Percentage(96);
                 }
 
-                globalValuesVar.setHeartRateDataArray(irBuffer, enoughSamples /*200*/);
-                globalValuesVar.setSpo2DataArray(redBuffer, enoughSamples /*200*/);
+                globalValuesVar.pushBackHeartRateDataArray( irBuffer, enoughSamples /*200*/ );
+                globalValuesVar.pushBackSpo2DataArray( redBuffer, enoughSamples /*200*/ );
                 Serial.print("Heart rate: ");
                 Serial.print(heartRate);
                 Serial.print(" bpm / SpO2: ");
@@ -435,7 +442,7 @@ void fft()
  * @note This function is called once.
  * 
  */
-void fillDataTests ()
+void fillDataTests ( void * parameter)
 {  
     uint32_t margin = 8;
     uint32_t xAxisEnd = 128-128/2;
@@ -526,11 +533,19 @@ void fillDataTests ()
     freqs_temp[5].amplitude = 50;
     freqs_temp[6].freqsHz = 40000;
     freqs_temp[6].amplitude = 220;
-
-
+        
     globalValuesVar.setBeatsPerMinute(beatsPerMinute_temp[0]);
     globalValuesVar.setSpo2Percentage(spo2Percentage_temp[0]); 
     globalValuesVar.setFreqs(freqs_temp);
-    globalValuesVar.setHeartRateDataArray(heartRateData_temp, size);
-    globalValuesVar.setSpo2DataArray(spo2Data_temp, size);
+    globalValuesVar.pushBackHeartRateDataArray(heartRateData_temp, size);
+    globalValuesVar.pushBackSpo2DataArray(spo2Data_temp, size);
+    for(;;)
+    {
+        globalValuesVar.setBeatsPerMinute(beatsPerMinute_temp[0]);
+        globalValuesVar.setSpo2Percentage(spo2Percentage_temp[0]); 
+        globalValuesVar.setFreqs(freqs_temp);
+        globalValuesVar.pushBackHeartRateDataArray(heartRateData_temp, size);
+        globalValuesVar.pushBackSpo2DataArray(spo2Data_temp, size);
+        delay(7500);
+    }
 }

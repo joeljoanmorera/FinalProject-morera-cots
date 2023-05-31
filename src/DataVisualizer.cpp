@@ -205,20 +205,24 @@ void globalDataVisualizer::getDisplayStyleFundamentalsFrequencies ( vector<funda
  * @see getDisplayStyleFudamentalsFrequencies(), getJSON().
  * 
 */
-String globalDataVisualizer::getLabeledFrequency(float data)
+String globalDataVisualizer::getLabeledFrequency(float data, bool withUnit)
 {
 
-    String labelHz = String(data) + " Hz";
+    String labelHz = String(data);
+    if(withUnit)labelHz += " ";
     if (data/1000 >= 1)
     {
-        labelHz = "";
-        labelHz = String(data/1000) + " KHz";
+        //labelHz = "";
+        labelHz = String(data/1000);
+        if (withUnit)labelHz += " K";
     }
     if (data/1000000 >= 1)
     {
-        labelHz = "";
-        labelHz = String(data/1000000) + " MHz";
+        //labelHz = "";
+        labelHz = String(data/1000000);
+        if (withUnit) labelHz +=" M";
     }
+    if (withUnit)labelHz += "Hz";
     return labelHz;
 }
 
@@ -274,9 +278,10 @@ String globalDataVisualizer::getJSON ( globalValues& globalValuesVar )
     }
     json += "], ";
     json += "\"freqsHz\": [";
+    bool withUnit = false;
     for(int i = 0; i < freqs.size(); i++)
     {
-        json += getLabeledFrequency(freqs[i].freqsHz);
+        json += getLabeledFrequency(freqs[i].freqsHz, withUnit);
         if(i != freqs.size() - 1)
         {
             json += ", ";

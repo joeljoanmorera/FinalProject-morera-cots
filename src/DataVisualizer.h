@@ -28,7 +28,7 @@ namespace std {
 
             void getDisplayStyleFundamentalsFrequencies ( vector<fundamentalsFreqs> data, vector<String>& labels, vector<float>& amplitudes );
 
-            String getLabeledFrequency(float data);
+            String getLabeledFrequency(float data, bool withUnit = true);
 
             float getMaxAmplitude( const vector<fundamentalsFreqs>& freqs );
 
