@@ -1,5 +1,7 @@
 #include "GlobalValues.h"
 
+using namespace std;
+
 /** Global values default constructor
  * 
  * @brief This function is the constructor of the global values.
@@ -7,8 +9,8 @@
  */
 globalValues::globalValues()
 {
-    this -> heartRateDataArray = 0;
-    this -> spo2DataArray = 0;
+    this -> heartRateDataArray = {};
+    this -> spo2DataArray = {};
     this -> beatsPerMinute = 0;
     this -> spo2Percentage = 0;
     this -> freqs = {};
@@ -25,7 +27,7 @@ globalValues::globalValues()
  * @param freqs Fundamentals frequencies.
  * 
  */
-globalValues::globalValues( uint32_t* heartRateDataArray, uint32_t* spo2DataArray, int32_t beatsPerMinute,
+globalValues::globalValues( vector<uint32_t> heartRateDataArray, vector<uint32_t> spo2DataArray, int32_t beatsPerMinute,
                             int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
 {
     this -> heartRateDataArray = heartRateDataArray;
@@ -42,9 +44,25 @@ globalValues::globalValues( uint32_t* heartRateDataArray, uint32_t* spo2DataArra
  * @param heartRateDataArray Heart rate data array.
  * 
  */
-void globalValues::setHeartRateDataArray(uint32_t* heartRateDataArray)
+void globalValues::setHeartRateDataArray ( vector <uint32_t>heartRateDataArray )
 {
     this -> heartRateDataArray = heartRateDataArray;
+}
+
+/** Set heart rate data array function
+ * 
+ * @brief This function sets the heart rate data array.
+ * 
+ * @param heartRateDataArray Heart rate data array.
+ * @param size Size of the heart rate data array.
+ * 
+ */
+void globalValues::setHeartRateDataArray(uint32_t* pHeartRateDataArray, uint32_t size)
+{  
+    for (uint32_t i = 0; i < size; i++)
+    {
+        this -> heartRateDataArray.push_back (pHeartRateDataArray[i]);
+    }
 }
 
 /** Set SPO2 data array function
@@ -54,9 +72,25 @@ void globalValues::setHeartRateDataArray(uint32_t* heartRateDataArray)
  * @param spo2DataArray SPO2 data array.
  * 
  */
-void globalValues::setSpo2DataArray(uint32_t* spo2DataArray)
+void globalValues::setSpo2DataArray ( vector<uint32_t> spo2DataArray )
 {
     this -> spo2DataArray = spo2DataArray;
+}
+
+/** Set SPO2 data array function
+ * 
+ * @brief This function sets the SPO2 data array.
+ * 
+ * @param spo2DataArray SPO2 data array.
+ * @param size Size of the SPO2 data array.
+ * 
+ */
+void globalValues::setSpo2DataArray(uint32_t* pSpo2DataArray, uint32_t size)
+{
+    for (uint32_t i = 0; i < size; i++)
+    {
+        this -> spo2DataArray.push_back(pSpo2DataArray[i]);
+    }
 }
 
 /** Set beats per minute function
@@ -102,9 +136,45 @@ void globalValues::setFreqs(vector<fundamentalsFreqs> freqs)
  * @return Heart rate data array.
  * 
  */
-uint32_t* globalValues::getHeartRateDataArray()
+vector<uint32_t> globalValues::getHeartRateDataArray()
 {
     return heartRateDataArray;
+}
+
+/** Get heart rate data array function
+ * 
+ * @brief This function returns the N first values of the heart rate data array.
+ * 
+ * @param N Size of the returned heart rate data array.
+ * 
+ * @return Heart rate data array.
+ * 
+ */
+vector<uint32_t> globalValues::getHeartRateDataArray(uint32_t N)
+{
+    vector<uint32_t> result;
+    for (uint32_t i = 0; i < N; i++)
+    {
+        result.push_back(heartRateDataArray[i]);
+    }
+    return result;
+}
+
+/** Get first value and shift heart rate function
+ * 
+ * @brief This function gets the first value of the heartRate array and shifts it.
+ * 
+ * @return Shifted heart rate data.
+ * 
+ */
+uint32_t globalValues::getFirstValueAndShiftHeartRate()
+{
+    uint32_t firstValue = heartRateDataArray[0];
+    for (uint32_t i = 0; i < heartRateDataArray.size(); i++)
+    {
+        heartRateDataArray[i] = heartRateDataArray[i + 1];
+    }
+    return firstValue;
 }
 
 /** Get SPO2 data array function
@@ -114,9 +184,45 @@ uint32_t* globalValues::getHeartRateDataArray()
  * @return SPO2 data array.
  * 
  */
-uint32_t* globalValues::getSpo2DataArray()
+vector<uint32_t> globalValues::getSpo2DataArray()
 {
     return spo2DataArray;
+}
+
+/** Get SPO2 data array function
+ * 
+ * @brief This function returns the N first values of the SPO2 data array.
+ * 
+ * @param N Size of the returned SPO2 data array.
+ * 
+ * @return SPO2 data array.
+ * 
+ */
+vector<uint32_t> globalValues::getSpo2DataArray(uint32_t N)
+{
+    vector<uint32_t> result;
+    for (uint32_t i = 0; i < N; i++)
+    {
+        result.push_back(spo2DataArray[i]);
+    }
+    return result;
+}
+
+/** Get first value and shift SPO2 function
+ * 
+ * @brief This function gets the first value of the spo2 array and shifts it.
+ * 
+ * @return Shifted spo2 data.
+ * 
+ */
+uint32_t globalValues::getFirstValueAndShiftSpo2()
+{
+    uint32_t firstValue = spo2DataArray[0];
+    for (uint32_t i = 0; i < spo2DataArray.size(); i++)
+    {
+        spo2DataArray[i] = spo2DataArray[i + 1];
+    }
+    return firstValue;
 }
 
 /** Get beats per minute function
@@ -153,58 +259,4 @@ int32_t globalValues::getSpo2Percentage()
 vector<fundamentalsFreqs> globalValues::getFreqs()
 {
     return freqs;
-}
-
-/** Get JSON function
- * 
- * @brief This function gets the JSON of the global values.
- * 
- * @param size_of_heartrate Size of the heart rate data array.
- * @param size_of_spo2 Size of the SPO2 data array.
- * 
- * @return JSON of the global values.
- * 
- */
-String globalValues::getJson(int size_of_heartrate, int size_of_spo2)
-{
-    if (pointerHeartRateDataArray == (size_of_heartrate - 1))
-    {
-        //pointerHeartRateDataArray --;
-        pointerHeartRateDataArray = 0;
-    }
-    if (pointerSpo2DataArray == (size_of_spo2 - 1)){
-        //pointerSpo2DataArray --;
-        pointerSpo2DataArray = 0; 
-    }
-    String json = "{";
-    json += "\"heartRateData\":" + String(heartRateDataArray[pointerHeartRateDataArray]) + ",";
-    json += "\"spo2Data\": " + String(spo2DataArray[pointerSpo2DataArray]) + ", ";
-    json += "\"beatsPerMinute\": " + String(beatsPerMinute) + ", ";
-    json += "\"spo2Percentage\": " + String(spo2Percentage) + ", ";
-    json += "\"freqsAmplitude\": [";
-    for(int i = 0; i < freqs.size(); i++)
-    {
-        json += String(freqs[i].amplitude);
-        if(i != freqs.size() - 1)
-        {
-            json += ", ";
-        }
-    }
-    json += "], ";
-    json += "\"freqsHz\": [";
-    for(int i = 0; i < freqs.size(); i++)
-    {
-        json += String(freqs[i].freqsHz);
-        if(i != freqs.size() - 1)
-        {
-            json += ", ";
-        }
-    }
-    json += "]";
-    json += "}";
-
-    pointerHeartRateDataArray++;
-    pointerSpo2DataArray++;
-    
-    return json;
 }

@@ -6,9 +6,7 @@
 #include "SPIFFS.h"
 #include "ESPAsyncWebServer.h"
 
-#include "WebPage.h"
-#include "Button.h"
-#include "Display.h"
+#include "DataVisualizer.h"
 #include "GlobalValues.h"
 
 #include "MAX30105.h"
@@ -35,32 +33,34 @@ using namespace std;
 
 // CONSTANTS and VARIABLES
 // Variables for data visualization
-const int BUTTON_NUMBER = 3;
-const int BPM_PIN = 25;
-const int SPO2_PIN = 26;
+const int BUTTONS_NUMBER = 3;
+const int BPM_PIN = 26;
+const int SPO2_PIN = 25;
 const int FUNDAMENTALS_PIN = 27;
 const int enoughSamples = 200;
-const char* ssid = "**";      // SSID of the WiFi
-const char* password =  "**"; // Password of the WiFi
-webPage webPageVar;
+const char* ssid = "iPhone de JJ";      // SSID of the WiFi
+const char* password = "onayago1"; // Password of the WiFi
 globalValues globalValuesVar;
-Display display(U8G2_R0, SCL, SI, CS, RS, RSE);
-buttonsArray buttons(BUTTON_NUMBER);                            
+globalDataVisualizer dataVisualizer( U8G2_R0, SCL, SI, CS, RS, RSE );
+hw_timer_t* timer = NULL;
 
 // Variables for data processing
 MAX30105 particleSensor;
-float vcoefs1[201];
+float vcoefs1[(enoughSamples + 1)];
 vector<fundamentalsFreqs> freqs;
-uint32_t irBuffer[200];     //infrared LED sensor data
-uint32_t redBuffer[200];    //red LED sensor data
+uint32_t irBuffer[enoughSamples];     //infrared LED sensor data
+uint32_t redBuffer[enoughSamples];    //red LED sensor data
 
 // FUNCTIONS DECLARATION
 void readData(void * parameter);
+void initGlobalVisualizer();
 void visualizeData(void * parameter);
+void IRAM_ATTR readButtonsWrapper();
 void initSPIFFS();
 void readFile();
 void initMAX30102();
 void fft();
+void fillDataTests();
 
 /** Setup function
  * 
@@ -80,39 +80,34 @@ void setup()
     // Serial initialization
     Serial.begin(115200);
 
-    // Display initialization
-    display.init();
-
-    //Initzialitaion of buttons
-    int* buttons_pins = new int[BUTTON_NUMBER];
-    buttons_pins[0] = BPM_PIN; buttons_pins[1] = SPO2_PIN; buttons_pins[2] = FUNDAMENTALS_PIN;
-    buttons.begin(buttons_pins);
-
     // SPIFFS initialization
     initSPIFFS();
 
-    // Web initialization
-    webPageVar.begin(ssid, password);
+    // Visualizer init
+    initGlobalVisualizer();
+    
+    // Data tests initialization
+    fillDataTests();
 
     // Data initialization
-    readFile();
+    // readFile();
 
     //MAX30102 initialization
-    initMAX30102();
+    // initMAX30102();
     
     // Create tasks 
-    xTaskCreatePinnedToCore(
-                    readData,    /* Task function. */
-                    "readData",  /* name of task. */
-                    10000,       /* Stack size of task */
-                    NULL,        /* parameter of the task */
-                    1,           /* priority of the task */
-                    NULL,        /* Task handle to keep track of created task */
-                    0);          /* pin task to core 0 */
+    // xTaskCreatePinnedToCore(
+    //                 readData,    /* Task function. */
+    //                 "readData",  /* name of task. */
+    //                 10000,       /* Stack size of task */
+    //                 NULL,        /* parameter of the task */
+    //                 1,           /* priority of the task */
+    //                 NULL,        /* Task handle to keep track of created task */
+    //                 0);          /* pin task to core 0 */
     xTaskCreatePinnedToCore(
                     visualizeData,   /* Task function. */
                     "visualizeData", /* name of task. */
-                    10000,        /* Stack size of task */
+                    100000,        /* Stack size of task */
                     NULL,         /* parameter of the task */
                     1,            /* priority of the task */
                     NULL,         /* Task handle to keep track of created task */
@@ -150,30 +145,56 @@ void loop(){}
  */
 void visualizeData ( void * parameter )
 {
-    for(;;)
-    {
-        Serial.print("Visualizing data in display - Button activated: ");
-        // Visualization in display
-        display.firstPage();
-        while(display.nextPage())
-        {
-            if (buttons[0].order){
-                display.updateData(globalValuesVar.getHeartRateDataArray(), globalValuesVar.getBeatsPerMinute(), true);
-                Serial.println("Heart Rate");
-            }
-            if(buttons[1].order){
-                display.updateData(globalValuesVar.getSpo2DataArray(), globalValuesVar.getSpo2Percentage(), false);
-                Serial.println("SpO2");
-            }
-            if(buttons[2].order){
-                display.updateFreqs(globalValuesVar.getFreqs());
-                Serial.println("Frequencies");
-            }        
-        }
-        // Visualization in web page
-        webPageVar.sendWsMessage(globalValuesVar.getJson((display.xAxisEnd - display.xAxisBegin), (display.xAxisEnd - display.xAxisBegin)));
-        delay(600);
-    }
+    for(;;)dataVisualizer.generateVisualization(globalValuesVar);
+}
+
+/** Global visualizer initialization function
+ * 
+ * @brief This function initializes the global visualizer.
+ *  
+ * @return void.
+ *  
+ * @details This function initializes the global visualizer.
+ *  
+ * @note This function is called once.
+ * 
+ * @see setup().
+ * 
+ */
+void initGlobalVisualizer()
+{
+    // Definition of pins array
+    vector<int> buttons_pins(BUTTONS_NUMBER);
+    buttons_pins[0] = BPM_PIN; 
+    buttons_pins[1] = SPO2_PIN;
+    buttons_pins[2] = FUNDAMENTALS_PIN;
+    
+    // Data visualization initialization
+    dataVisualizer.setup(buttons_pins, ssid, password);
+
+    // Timer inizialization
+    timer = timerBegin(0, 80, true);
+    timerAttachInterrupt(timer, &readButtonsWrapper, true);
+    timerAlarmWrite(timer, 100000, true);
+    timerAlarmEnable(timer);
+}
+
+/** Read buttons wrapper function
+ * 
+ * @brief This function is the wrapper of the read buttons function.
+ *  
+ * @return void.
+ *  
+ * @details This function is the wrapper of the read buttons function.
+ *  
+ * @note This function is called when the timer is activated. 
+ * 
+ * @see initGlobalVisualizer(), buttonsArray::readButtons().
+ * 
+ */
+void IRAM_ATTR readButtonsWrapper()
+{
+    dataVisualizer.buttons.readButtons();
 }
 
 /** Data function
@@ -246,8 +267,8 @@ void readData ( void * parameter )
                     globalValuesVar.setSpo2Percentage(96);
                 }
 
-                globalValuesVar.setHeartRateDataArray(irBuffer);
-                globalValuesVar.setSpo2DataArray(redBuffer);
+                globalValuesVar.setHeartRateDataArray(irBuffer, enoughSamples /*200*/);
+                globalValuesVar.setSpo2DataArray(redBuffer, enoughSamples /*200*/);
                 Serial.print("Heart rate: ");
                 Serial.print(heartRate);
                 Serial.print(" bpm / SpO2: ");
@@ -384,8 +405,6 @@ void fft()
     FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
     vReal[0] = 0; // Remove the DC component
 
-    normalize(vReal, SAMPLES);
-
     // print results
     Serial.println("FFT results:");
     for (int i = 0; i < SAMPLES / 2; i++)
@@ -405,23 +424,6 @@ void fft()
     globalValuesVar.setFreqs(freqs);               
 }
 
-void normalize(double vReal[], int n){
-    // get max value
-    float max=0;
-    for(int i = 0; i < n; i++)
-    {
-        if(vReal[i]>max)
-        {
-            max=vReal[i];
-        }
-    }
-    // normalize
-    for(int i = 0; i < n; i++)
-    {
-        vReal[i]=vReal[i]/max;
-    }
-}
-
 /** Data tests initialization function
  * 
  * @brief This function initializes the data tests.
@@ -434,24 +436,27 @@ void normalize(double vReal[], int n){
  * 
  */
 void fillDataTests ()
-{   
-    uint32_t* heartRateData_temp = new uint32_t[display.xAxisEnd - display.xAxisBegin];
-    uint32_t* spo2Data_temp = new uint32_t[display.xAxisEnd - display.xAxisBegin];
-
+{  
+    uint32_t margin = 8;
+    uint32_t xAxisEnd = 128-128/2;
+    uint32_t xAxisBegin  = margin/4;
+    uint32_t size = xAxisEnd - xAxisBegin;
+    uint32_t* heartRateData_temp = new uint32_t[size];
+    uint32_t* spo2Data_temp = new uint32_t[size];
     uint32_t j = 0;
-    for (uint32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
+    for (uint32_t i = 0; i < size; i++)
     {
         // Little mountain in the middle with a value of yAxisEnd
-        if (i < display.xAxisEnd/4)
+        if (i < xAxisEnd/4)
         {
             spo2Data_temp[i] = 0;
         }
-        else if (i < display.xAxisEnd/2)
+        else if (i < xAxisEnd/2)
         {
             spo2Data_temp[i] =  j;
             j+=3;
         }
-        else if (i < 3*display.xAxisEnd/4)
+        else if (i < 3*xAxisEnd/4)
         {
             j-=3;
             spo2Data_temp[i] = j;
@@ -462,25 +467,24 @@ void fillDataTests ()
         }
     }
 
-    
-    for (uint32_t i = 0; i < (display.xAxisEnd - display.xAxisBegin); i++)
+    for (uint32_t i = 0; i < size; i++)
     {
         // Little mountain in the middle with a value of yAxisEnd
-        if (i < display.xAxisEnd/4)
+        if (i < xAxisEnd/4)
         {
             heartRateData_temp[i] = 0;
         }
-        else if (i < 3*display.xAxisEnd/8)
+        else if (i < 3*xAxisEnd/8)
         {
             heartRateData_temp[i] =  j;
             j+=3;
         }
-        else if (i < 5*display.xAxisEnd/8)
+        else if (i < 5*xAxisEnd/8)
         {
             if(j >= 3)j-=3;
             heartRateData_temp[i] = j;
         }
-        else if (i < 3*display.xAxisEnd/4)
+        else if (i < 3*xAxisEnd/4)
         {
             j+=3;
             heartRateData_temp[i] = j;
@@ -500,13 +504,11 @@ void fillDataTests ()
     beatsPerMinute_temp[3] = 90;
     beatsPerMinute_temp[4] = 100;
 
-
     spo2Percentage_temp[0] = 90;
     spo2Percentage_temp[1] = 91;
     spo2Percentage_temp[2] = 92;
     spo2Percentage_temp[3] = 93;
     spo2Percentage_temp[4] = 94;
-
 
     vector<fundamentalsFreqs> freqs_temp(7);
 
@@ -525,9 +527,10 @@ void fillDataTests ()
     freqs_temp[6].freqsHz = 40000;
     freqs_temp[6].amplitude = 220;
 
-    globalValuesVar.setHeartRateDataArray(heartRateData_temp);
-    globalValuesVar.setSpo2DataArray(spo2Data_temp);
+
     globalValuesVar.setBeatsPerMinute(beatsPerMinute_temp[0]);
-    globalValuesVar.setSpo2Percentage(spo2Percentage_temp[0]);
+    globalValuesVar.setSpo2Percentage(spo2Percentage_temp[0]); 
     globalValuesVar.setFreqs(freqs_temp);
+    globalValuesVar.setHeartRateDataArray(heartRateData_temp, size);
+    globalValuesVar.setSpo2DataArray(spo2Data_temp, size);
 }

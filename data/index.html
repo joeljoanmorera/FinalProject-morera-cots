@@ -1,58 +1,53 @@
 <!DOCTYPE html>
-
 <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <title>Heartrate & SPO2</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300&display=swap" rel="stylesheet">
-        <script src="https://kit.fontawesome.com/22446ba122.js" crossorigin="anonymous"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
-        <script type="text/javascript" src="./js/main.js"></script>
-        <link rel="stylesheet" type="text/css" href="./css/stylesheet.css">
-    </head>
-
-    <body>
-            <!-- Header -->
-            <div id="header">
-                <h1>Heartrate & SPO2</h1>
-            </div>
-            <div class="container">
-
-                <!-- Heartrate -->
-                <div class="card">
-                    <h2>Frecuencia cardíaca</h2>
-                    <p id="heartrate"> - BPM</p>
-                    <script>
-                        document.getElementById('heartrate').innerHTML = bpm;
-                    </script>
-                    <canvas id="cardiograma-chart" style="width:100%;max-width:400px"></canvas>
-                    <script type="text/javascript" src="./js/heartrate-chart.js"></script>
-                </div>
-
-                <!-- Freqs -->
-                <div class="card">
-                    <h2>Armonicos del corazón</h2>
-                    <canvas id="freqs-chart" style="width:100%;max-width:400px"></canvas>
-                    <script type="text/javascript" src="./js/frequencies-chart.js"></script>
-                </div>
-
-                <!-- SPO2 -->
-                <div class="card">
-                    <h2>Saturación de oxígeno en sangre</h2>
-                    <p id="spo2"> - %</p>
-                    <script>
-                        document.getElementById('spo2').innerHTML = spo;
-                    </script>
-                    <canvas id="spo2-chart" style="width:100%;max-width:400px"></canvas>
-                    <script type="text/javascript" src="./js/spo2-chart.js"></script>
-                </div>     
-            </div>
-
-        <!-- Footer -->
-        <div id="footer">
-            <p>© 2023 - Heartrate & SPO2 - Gerard Cots i Escude & Joel J. Morera Bokobo</p>
+<head>
+    <meta charset="UTF-8">
+    <title>Heartrate & SPO2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/22446ba122.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+    <script type="text/javascript" src="./js/main.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/stylesheet.css">
+</head>
+<body>
+    <!-- Header -->
+    <div id="header">
+        <h1>Heartrate & SPO2</h1>
+    </div>
+    <div class="container">
+        <!-- Heartrate -->
+        <div class="card">
+            <h2>Frecuencia cardíaca</h2>
+            <p id="heartrate"> - BPM</p>
+            <script>
+                document.getElementById('heartrate').innerHTML = bpm;
+            </script>
+            <canvas id="cardiograma-chart"></canvas>
+            <script type="text/javascript" src="./js/heartrate-chart.js"></script>
         </div>
-    </body>
+        <!-- Freqs -->
+        <div class="card">
+            <h2>Armonicos del corazón</h2>
+            <canvas id="freqs-chart"></canvas>
+            <script type="text/javascript" src="./js/frequencies-chart.js"></script>
+        </div>
+        <!-- SPO2 -->
+        <div class="card">
+            <h2>Saturación de oxígeno en sangre</h2>
+            <p id="spo2"> - %</p>
+            <script>
+                document.getElementById('spo2').innerHTML = spo;
+            </script>
+            <canvas id="spo2-chart"></canvas>
+            <script type="text/javascript" src="./js/spo2-chart.js"></script>
+        </div>     
+    </div>
+    <!-- Footer -->
+    <div id="footer">
+        <p>© 2023 - Heartrate & SPO2 - Gerard Cots i Escude & Joel J. Morera Bokobo</p>
+    </div>
+</body>
 </html>

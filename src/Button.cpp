@@ -1,5 +1,7 @@
 #include <Button.h>
 
+using namespace std;
+
 /** Button default constructor
  * 
  * @brief This function is the constructor of the button.
@@ -48,22 +50,11 @@ Button& Button::operator =(const Button& B)
 
 /** buttonsArray default constructor
  * 
- * @brief This function is the constructor of the buttonsArray.
+ * @brief This function is the default constructor of the buttonsArray.
  *
  */
-buttonsArray::buttonsArray(){}
-
-/** buttonsArray constructor
- * 
- * @brief This function is the constructor of the buttonsArray.
- *
- * @param pNumButtons Number of buttons.
- * 
- */
-buttonsArray::buttonsArray(uint8_t pNumButtons)
-{
-    numButtons = pNumButtons;
-    buttons = new Button[numButtons];
+buttonsArray::buttonsArray(){
+    buttons.clear();
 }
 
 /** buttonsArray = operator
@@ -78,11 +69,10 @@ buttonsArray::buttonsArray(uint8_t pNumButtons)
 buttonsArray& buttonsArray::operator =(const buttonsArray& B)
 {
     if (this != &B)
-      {
-        this -> numButtons = B.numButtons;
+    {
         this -> buttons = B.buttons;
-      }
-      return(*this);
+    }
+    return(*this);
 }
 
 /** buttonsArray [] operator
@@ -106,48 +96,20 @@ Button& buttonsArray::operator [](int i)
  * @param buttonPins Buttons' pins array.
  * 
  */
-void buttonsArray::begin(int* buttonPins)
+void buttonsArray::begin(vector<int> buttonPins, bool defaultOrder)
 {
     //Buttons definition
-    for(uint8_t i = 0; i < numButtons; i++)
+    for(uint8_t i = 0; i < buttonPins.size(); i++)
     {
-        buttons[i] = Button(buttonPins[i]);
+        buttons.push_back(Button(uint8_t(buttonPins[i])));
     }
-
     //Buttons'pins initialization
-    for(uint8_t i = 0; i < numButtons; i++)
+    for(uint8_t i = 0; i < buttonPins.size(); i++)
     {
         pinMode(buttonPins[i], INPUT_PULLUP);
     }
-    
-    // Timer initialization
-    timer = timerBegin(0, 80, true);
-    timerAttachInterrupt(timer, &buttonsArray::readButtonsWrapper, true);
-    timerAlarmWrite(timer, 100000, true);
-    timerAlarmEnable(timer);
-
     // Default order
-    buttons[0].order = 1;
-}
-
-/** buttonsArray readButtonsWrapper function
- * 
- * @brief This function is the wrapper of the readButtons function.
- *  
- * @return void.
- *  
- * @details This function is the wrapper of the readButtons function.
- *  
- * @note This function is called when the timer is activated. 
- *       Therefore, it is called when an interrupt is generated.
- * 
- * @see readButtons().
- * 
- */
-void IRAM_ATTR buttonsArray::readButtonsWrapper()
-{
-    static buttonsArray instance;
-    instance.buttonsArray::readButtons();
+    if(defaultOrder)buttons[0].order = 1;
 }
 
 /** Button management function
@@ -164,16 +126,16 @@ void IRAM_ATTR buttonsArray::readButtonsWrapper()
  * @see initButtons(), readButtonsWrapper().
  * 
  */
-void IRAM_ATTR buttonsArray::readButtons()
+void buttonsArray::readButtons()
 { 
-    for(uint8_t i = 0; i < numButtons; i++)
+    for(uint8_t i = 0; i < buttons.size(); i++)
     {
         buttons[i].actualValue = digitalRead(buttons[i].pin);                        // Read the value of the button
         buttons[i].actualChange = buttons[i].previousValue ^ buttons[i].actualValue; // XOR of actual value and last value
         if(buttons[i].actualChange == 1 && buttons[i].previousChange == 1)           // If both status changes are equal to 1
         {
             buttons[i].order = 1;                                                    // Order to 1
-            for (uint8_t j = 0; j < numButtons; j++)
+            for (uint8_t j = 0; j < buttons.size(); j++)
             {
                 if (j != i)buttons[j].order = 0;                                     // Rest of orders to 0 
             }

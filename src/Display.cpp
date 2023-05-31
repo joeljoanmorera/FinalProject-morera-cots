@@ -1,5 +1,7 @@
 #include "Display.h"
 
+using namespace std;
+
 /** Init function
  * 
  * @brief This function initializes the display.
@@ -23,22 +25,6 @@ void Display::init()
     yAxisEnd        = height - margin/2;
     halfHeight      = height/2;
 }
-
-/** Update data function
- * 
- * @brief This function updates the data in the display.
- *
- * @param array Array of data to update.
- * @param value Value to update.
- * @param choiceBPM Choice of the data to update.
- */
-void Display::updateData(uint32_t* array, int32_t value, bool choiceBPM)
-{
-    this -> drawAxis();
-    uint32_t* discretizedArray = this -> discretizeData(array, choiceBPM);
-    this -> drawData(discretizedArray, choiceBPM);
-    this -> printMeasurements(value, choiceBPM);
-}
  
 /** Draw axis in the display function
  * 
@@ -47,61 +33,11 @@ void Display::updateData(uint32_t* array, int32_t value, bool choiceBPM)
  * @param longAxis Choice of the X axis to draw. By default is false.
  *
  */
-void Display::drawAxis(bool longAxis = false)
+void Display::drawAxis(bool longAxis)
 {
     this -> drawLine(xAxisBegin, yAxisBegin, xAxisBegin, yAxisEnd);                     // Y-axis
     if (longAxis) this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd + margin, yAxisEnd);  // X-long-axis
     else this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd, yAxisEnd);                    // X-axis
-}
-
-/** Discretize data function
- * 
- * @brief This function discretizes the data.
- *
- * @param dataVector Data to discretize.
- * @param choiceBPM Choice of the data to discretize.
- * 
- * @return Discretized data.
- */
-uint32_t* Display::discretizeData(uint32_t* dataVector, bool choiceBPM)
-{
-    uint32_t* discretizedDataVector = new uint32_t[xAxisEnd - xAxisBegin];
-    uint32_t max = getMaxValue(dataVector);
-    uint32_t yAxisScale = 1;
-    if (choiceBPM){
-        yAxisScale =uint32_t(max/(halfHeight - margin));
-    } else {
-        yAxisScale = uint32_t(max/(yAxisEnd - margin)); 
-    } 
-
-    if (yAxisScale == 0)yAxisScale = 1;
-
-    for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-    {
-        discretizedDataVector[i] = uint32_t(dataVector[i]/yAxisScale);
-    }
-    return discretizedDataVector;
-}
-
-/** Get max value function
- * 
- * @brief This function gets the max value.
- *
- * @param dataVector Data to get the max value.
- * 
- * @return Max value.
- */
-uint32_t Display::getMaxValue(uint32_t* dataVector)
-{
-    uint32_t max = 0;
-    for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-    {
-        if (dataVector[i] > max)
-        {
-            max = dataVector[i];
-        }
-    }
-    return max;
 }
 
 /** Draw data function
@@ -111,20 +47,21 @@ uint32_t Display::getMaxValue(uint32_t* dataVector)
  * @param dataVector Data to draw.
  * @param choiceBPM Choice of the data to draw.
  */
-void Display::drawData(uint32_t* dataVector, bool choiceBPM)
+void Display::drawData(vector<uint32_t> dataVector, bool choiceBPM)
 {
     uint32_t lastHeight = 0;
+    uint32_t windowSize = this -> getDataWindowSize();
     if (choiceBPM)
     {
-        for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+        for (uint32_t i = 0; i < windowSize; i++)
         {
             this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, halfHeight - dataVector[i]);
             lastHeight = halfHeight - dataVector[i];
-        }   
+        }
     }
     else
     {
-        for (uint32_t i = 0; i < xAxisEnd - xAxisBegin; i++)
+        for (uint32_t i = 0; i < windowSize; i++)
         {
             this -> drawLine(xAxisBegin + i, lastHeight, xAxisBegin + i, yAxisEnd - margin - dataVector[i]);
             lastHeight = yAxisEnd - margin - dataVector[i];
@@ -161,67 +98,53 @@ void Display::printMeasurements(int32_t value, bool choiceBPM)
     this -> print(valueString);
 }
 
-/** Update frequencies function
+/** Draw bars function
  * 
- * @brief This function updates the frequencies in the display.
+ * @brief This function draws the bars in the display.
  *
- * @param freqs Vector of frequencies to update.
- */
-void Display::updateFreqs(const vector<fundamentalsFreqs>& freqs)
-{
-    this -> drawAxis(true);
-    this -> drawFreqs(freqs);
-}
-
-/** Draw frequencies function
+ * @param labels Labels to print.
+ * @param normalizedAmplitudes Normalized amplitudes to print.
  * 
- * @brief This function draws the frequencies in the display.
+ * @note This function expects the labels and the normalized amplitudes to be in the same order.
+ *       Also, amplitudes must be normalized between 0 and 1.
  *
- * @param freqs Vector of frequencies to draw.
  */
-void Display::drawFreqs(const vector<fundamentalsFreqs>& freqs)
+void Display::drawBars ( const vector<String>& labels, const vector<float>& normalizedAmplitudes )
 {
-    int max = getMaxAmplitude(freqs);
-    uint32_t yAxisScale = max/yAxisEnd;
-    uint32_t xAxisScale = (xAxisEnd + margin/2)/freqs.size();
-    uint32_t yAxisStep = yAxisEnd/freqs.size();
     this -> setFont(u8g2_font_tinyunicode_tf);
 
-    for (uint8_t i = 0; i < freqs.size() ; i++)
+    if(labels.size() != normalizedAmplitudes.size())
     {
-        // Plot amplitude of each freq
+        Serial.println("Error: labels and normalizedAmplitudes must have the same size");
+        return;
+    }
+
+    uint32_t xAxisScale = (xAxisEnd + margin/2)/labels.size();
+    uint32_t yAxisStep = yAxisEnd/labels.size();
+    for (uint8_t i = 0; i < labels.size() ; i++)
+    {
+        // Plot bar
         uint32_t xAxisPlotBegin = xAxisScale*i + xAxisScale/2;
         uint32_t xWidth = int(xAxisPlotBegin + xAxisScale/5);
-        uint32_t totalPixelValues = int(freqs[i].amplitude/yAxisScale);
+        uint32_t amplitude = uint32_t(yAxisEnd*normalizedAmplitudes[i]);
 
-        for (uint32_t j = 0; j < totalPixelValues; j++)
+        for (uint32_t j = 0; j < amplitude; j++)
         {
             this -> drawLine(xAxisPlotBegin, yAxisEnd -j, xWidth ,yAxisEnd -j);
         }
-
-        // Plot freq in Hz
+        // Plot label
         this -> setCursor(xAxisEnd + 2*margin, yAxisStep * i + 4/3*margin);
-        this -> print(freqs[i].freqsHz);
+        this -> print(labels[i]);
     }
 }
 
-/** Get max amplitude function
+/** Get data window size function
  * 
- * @brief This function gets the max amplitude.
+ * @brief This function returns the size that the data should have in order to be correctly visualized.
  *
- * @param freqs Vector of frequencies.
- * 
- * @return Max amplitude.
+ * @return Data window size.
  */
-int Display::getMaxAmplitude(const vector<fundamentalsFreqs>& freqs)
+uint32_t Display::getDataWindowSize()
 {
-    int max = 0;
-    for (uint8_t i = 0; i < freqs.size(); i++)
-    {
-        if (freqs[i].amplitude > max)
-        {
-            max = freqs[i].amplitude;
-        }
-    }
-    return max;
+    return xAxisEnd - xAxisBegin;
 }

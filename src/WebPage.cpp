@@ -7,7 +7,7 @@
  * @param port Port number.
  *
  */
-webPage::webPage(int port = 80):server(port), ws("/ws")
+webPage::webPage(int port):server(port), ws("/ws")
 {
     globalClient = NULL;
 }
