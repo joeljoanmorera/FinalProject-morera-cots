@@ -13,6 +13,9 @@ using namespace std;
  * @param cs CS pin of the display.
  * @param dc DC  pin of the display.
  * @param reset Reset pin of the display.
+ * 
+ * @see Display(), webPage(), buttonsArray().
+ * 
  */
 globalDataVisualizer::globalDataVisualizer ( const u8g2_cb_t *rotation, uint8_t clock, 
                                              uint8_t data, uint8_t cs, uint8_t dc, uint8_t reset, int port ):
@@ -25,6 +28,9 @@ globalDataVisualizer::globalDataVisualizer ( const u8g2_cb_t *rotation, uint8_t 
  * @param buttonPins Pins of the buttons.
  * @param ssid SSID of the network.
  * @param password Password of the network.
+ * 
+ * @see buttonsArray::begin(), Display::init(), webPage::begin().
+ * 
  */
 void globalDataVisualizer::setup ( vector<int> buttonPins, const char* ssid, const char* password )
 {
@@ -55,6 +61,8 @@ void globalDataVisualizer::generateVisualization( globalValues& globalValuesVar 
  * @brief This function generates the display visualization.
  *
  * @param globalValuesVar Global values.
+ * 
+ * @see defaultDataVisualitzation(), frequenciesDataVisualitzation().
  */
 void globalDataVisualizer::generateDisplayVisualization ( globalValues& globalValuesVar )
 {
@@ -80,19 +88,20 @@ void globalDataVisualizer::generateDisplayVisualization ( globalValues& globalVa
  * @param globalValuesVar Global values.
  * @param windowSize Size of the window.( N first values that will be visualized)
  * @param heartRateType Choice of the data to visualize.
+ * 
+ * @details This function discretizes the data and visualizes it.
+ * 
+ * @see defaultDiscretization(), getLabeledFrequency(), getDisplayStyleFundamentalsFrequencies().
  */
 void globalDataVisualizer::defaultDataVisualitzation ( globalValues& globalValuesVar, uint32_t windowSize, bool heartRateType )
 {
     display.drawAxis();
     vector<uint32_t> data;
     uint32_t value;
-    if (heartRateType)
-    {
+    if ( heartRateType ) {
         data = globalValuesVar.getHeartRateDataArray(windowSize);
         value = globalValuesVar.getBeatsPerMinute();
-    }
-    else
-    {
+    } else {
         data = globalValuesVar.getSpo2DataArray(windowSize);
         value = globalValuesVar.getSpo2Percentage();
     }
@@ -109,18 +118,17 @@ void globalDataVisualizer::defaultDataVisualitzation ( globalValues& globalValue
  * @param data Data to discretize.
  * @param heartRateType Choice of the data to discretize.
  * 
+ * @details This function discretizes the data by normalizing it in realation to the maximum value divided by the Y axis bias.
+ *          From that we will obtain the height of each value in pixels, being the maximum value the highest permitted value.
+ * 
  * @return Discretized data.
  */
 vector<uint32_t> globalDataVisualizer::defaultDiscretization ( vector<uint32_t> data, bool heartRateType )
 {
     vector<uint32_t> discretizedDataVector;
     uint32_t max = getMaxValue(data);
-    uint32_t yAxisScale = 1;
-    if (heartRateType){
-        yAxisScale =uint32_t(max/(display.halfHeight - display.margin));
-    } else {
-        yAxisScale = uint32_t(max/(display.yAxisEnd - display.margin)); 
-    } 
+    uint32_t yBias = display.getYAxisBias(heartRateType);
+    uint32_t yAxisScale = uint32_t(max/yBias);
 
     if (yAxisScale == 0)yAxisScale = 1;
     
@@ -138,6 +146,9 @@ vector<uint32_t> globalDataVisualizer::defaultDiscretization ( vector<uint32_t> 
  * @param data Data to get the max value.
  * 
  * @return Max value.
+ * 
+ * @see defaultDiscretization().
+ * 
  */
 uint32_t globalDataVisualizer::getMaxValue( vector<uint32_t> data )
 {
@@ -157,6 +168,8 @@ uint32_t globalDataVisualizer::getMaxValue( vector<uint32_t> data )
  * @brief This function visualizes the frequencies data.
  *
  * @param globalValuesVar Global values.
+ * 
+ * @see getDisplayStyleFundamentalsFrequencies(), getLabeledFrequency().
  */
 void globalDataVisualizer::frequenciesDataVisualitzation ( globalValues& globalValuesVar )
 {
@@ -175,6 +188,10 @@ void globalDataVisualizer::frequenciesDataVisualitzation ( globalValues& globalV
  * @param data Data to get the scaled fundamentals frequencies.
  * @param labels Vector of labels.
  * @param amplitudes Vector of amplitudes.
+ * 
+ * @details This function normalizes the amplitudes and adds them to the amplitudes vector. The normalized amplitude should be
+ *          a float number between 0 and 1. The labels vector is filled with the frequencies in Hz, kHz or MHz depending on the
+ *         magnitude of the frequency.
  * 
  * @see getLabeledFrequency(), frequenciesDataVisualitzation().
  * 
@@ -199,6 +216,7 @@ void globalDataVisualizer::getDisplayStyleFundamentalsFrequencies ( vector<funda
  * @brief This function returns a string with an appropiate style realted to its magnitude
  * 
  * @param data Data to convert into string
+ * @param withUnit Choice of the unit to add to the string (by default is true)
  * 
  * @return String of the input data
  * 
@@ -207,18 +225,15 @@ void globalDataVisualizer::getDisplayStyleFundamentalsFrequencies ( vector<funda
 */
 String globalDataVisualizer::getLabeledFrequency(float data, bool withUnit)
 {
-
     String labelHz = String(data);
     if(withUnit)labelHz += " ";
     if (data/1000 >= 1)
     {
-        //labelHz = "";
         labelHz = String(data/1000);
         if (withUnit)labelHz += " K";
     }
     if (data/1000000 >= 1)
     {
-        //labelHz = "";
         labelHz = String(data/1000000);
         if (withUnit) labelHz +=" M";
     }
@@ -254,6 +269,16 @@ float globalDataVisualizer::getMaxAmplitude ( const vector<fundamentalsFreqs>& f
  * @param globalValuesVar Global values variable.
  * 
  * @return JSON of the global values.
+ * 
+ * @details This function returns the JSON of the global values. The JSON is structured as follows:
+ *         {
+ *              "heartRateData": firstHeartRateData,
+ *              "spo2Data": firstSpo2Data,
+ *              "beatsPerMinute": beatsPerMinute,
+ *              "spo2Percentage": spo2Percentage,
+ *              "freqsAmplitude": [freqsAmplitude],
+ *              "freqsHz": [labeledFreqsHz]
+ *          }
  * 
  * @see getLabeledFrequency().
  * 

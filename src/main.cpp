@@ -1,18 +1,7 @@
-#include <U8g2lib.h>
-#include <SPI.h>
-#include <Wire.h>
-#include <vector>
-#include "WiFi.h"
 #include "SPIFFS.h"
-#include "ESPAsyncWebServer.h"
-
 #include "DataVisualizer.h"
+#include "DataReader.h"
 #include "GlobalValues.h"
-
-#include "MAX30105.h"
-#include "heartRate.h"
-#include "spo2_algorithm.h"
-#include "arduinoFFT.h"
 
 using namespace std;
 
@@ -37,30 +26,20 @@ const int BUTTONS_NUMBER = 3;
 const int BPM_PIN = 26;
 const int SPO2_PIN = 25;
 const int FUNDAMENTALS_PIN = 27;
-const int enoughSamples = 200;
-const char* ssid = "MiFibra-F392";      // SSID of the WiFi
-const char* password = "5QUisHGE"; // Password of the WiFi
-globalValues globalValuesVar;
+const char* ssid = "iPhone de JJ";      // SSID of the WiFi
+const char* password = "onayago1"; // Password of the WiFi
+globalValues dataStorage;
 globalDataVisualizer dataVisualizer( U8G2_R0, SCL, SI, CS, RS, RSE );
+globalDataReader dataReader;
 hw_timer_t* timer = NULL;
 
-// Variables for data processing
-MAX30105 particleSensor;
-float vcoefs1[(enoughSamples + 1)];
-vector<fundamentalsFreqs> freqs;
-uint32_t irBuffer[enoughSamples];     //infrared LED sensor data
-uint32_t redBuffer[enoughSamples];    //red LED sensor data
-
 // FUNCTIONS DECLARATION
-void readData( void * parameter );
-void initGlobalVisualizer();
-void visualizeData( void * parameter );
-void IRAM_ATTR readButtonsWrapper();
-void initSPIFFS();
-void readFile();
-void initMAX30102();
-void fft();
-void fillDataTests( void * parameter );
+void initSPIFFS ();
+void initGlobalVisualizer ();
+void IRAM_ATTR readButtonsWrapper ();
+void readData ( void * parameter );
+void visualizeData ( void * parameter );
+void fillDataTests ( void * parameter );
 
 /** Setup function
  * 
@@ -75,7 +54,7 @@ void fillDataTests( void * parameter );
  * @see loop().
  * 
  */
-void setup() 
+void setup () 
 {
     // Serial initialization
     Serial.begin(115200);
@@ -85,32 +64,20 @@ void setup()
 
     // Visualizer init
     initGlobalVisualizer();
+
+    dataReader.setup();
     
-    // Data tests initialization
+    // Create task for reading
     xTaskCreatePinnedToCore(
-                    fillDataTests,   /* Task function. */
-                    "fillDataTests", /* name of task. */
-                    10000,        /* Stack size of task */
-                    NULL,         /* parameter of the task */
-                    1,            /* priority of the task */
-                    NULL,         /* Task handle to keep track of created task */
-                    0);           /* pin task to core 1 */
+                    readData,    /* Task function. */
+                    "readData",  /* name of task. */
+                    10000,       /* Stack size of task */
+                    NULL,        /* parameter of the task */
+                    1,           /* priority of the task */
+                    NULL,        /* Task handle to keep track of created task */
+                    0);          /* pin task to core 0 */
 
-    // Data initialization
-    // readFile();
-
-    //MAX30102 initialization
-    // initMAX30102();
-    
-    // Create tasks 
-    // xTaskCreatePinnedToCore(
-    //                 readData,    /* Task function. */
-    //                 "readData",  /* name of task. */
-    //                 10000,       /* Stack size of task */
-    //                 NULL,        /* parameter of the task */
-    //                 1,           /* priority of the task */
-    //                 NULL,        /* Task handle to keep track of created task */
-    //                 0);          /* pin task to core 0 */
+    // Create task for visualization
     xTaskCreatePinnedToCore(
                     visualizeData,   /* Task function. */
                     "visualizeData", /* name of task. */
@@ -119,6 +86,16 @@ void setup()
                     1,            /* priority of the task */
                     NULL,         /* Task handle to keep track of created task */
                     1);           /* pin task to core 1 */
+
+    // Create task for data tests
+    // xTaskCreatePinnedToCore(
+    //                 fillDataTests,   /* Task function. */
+    //                 "fillDataTests", /* name of task. */
+    //                 10000,        /* Stack size of task */
+    //                 NULL,         /* parameter of the task */
+    //                 1,            /* priority of the task */
+    //                 NULL,         /* Task handle to keep track of created task */
+    //                 0);           /* pin task to core 1 */
 }
 
 /** Loop function
@@ -134,25 +111,25 @@ void setup()
  * @see setup().
  * 
  */
-void loop(){}
+void loop (){}
 
-/** Visualize data function
+/** SPIFFS initialization function
  * 
- * @brief This function visualizes the data in the display and in the web page.
+ * @brief This function initializes the SPIFFS.
  *  
  * @return void.
  *  
- * @details This function visualizes the data in the display and in the web page. This
- * function is executed in one core of the ESP32.
+ * @details This function initializes the SPIFFS.
  *  
  * @note This function is called once.
  * 
- * @see setup().
- * 
  */
-void visualizeData ( void * parameter )
+void initSPIFFS ()
 {
-    for(;;)dataVisualizer.generateVisualization(globalValuesVar);
+  if(!SPIFFS.begin()){
+     Serial.println("An Error has occurred while mounting SPIFFS");
+     for(;;);
+  }
 }
 
 /** Global visualizer initialization function
@@ -168,7 +145,7 @@ void visualizeData ( void * parameter )
  * @see setup().
  * 
  */
-void initGlobalVisualizer()
+void initGlobalVisualizer ()
 {
     // Definition of pins array
     vector<int> buttons_pins(BUTTONS_NUMBER);
@@ -199,9 +176,28 @@ void initGlobalVisualizer()
  * @see initGlobalVisualizer(), buttonsArray::readButtons().
  * 
  */
-void IRAM_ATTR readButtonsWrapper()
+void IRAM_ATTR readButtonsWrapper ()
 {
-    dataVisualizer.buttons.readButtons();
+    dataVisualizer.buttons.readButtons ();
+}
+
+/** Visualize data function
+ * 
+ * @brief This function visualizes the data in the display and in the web page.
+ *  
+ * @return void.
+ *  
+ * @details This function visualizes the data in the display and in the web page. This
+ * function is executed in one core of the ESP32.
+ *  
+ * @note This function is called once.
+ * 
+ * @see setup().
+ * 
+ */
+void visualizeData ( void * parameter )
+{
+    for(;;)dataVisualizer.generateVisualization(dataStorage);
 }
 
 /** Data function
@@ -219,216 +215,11 @@ void IRAM_ATTR readButtonsWrapper()
  */
 void readData ( void * parameter )
 {
-    vector<float> input_data;
-    vector<float> input_data2;
-    int i=0;
-    int n=0;
-    int32_t bufferLength,   //data length
-            spo2,           //SPO2 value
-            heartRate;      //heart rate value
-    int8_t  validSPO2,      //indicator to show if the SPO2 calculation is valid
-            validHeartRate; //indicator to show if the heart rate calculation is valid
     for(;;)
     {
-      float y = 0.0;
-      float y2 = 0.0;
-        //lastTime1 = millis();
-        
-        // read the value from the sensor
-        float value = particleSensor.getIR();
-        //Serial.println(millis() - lastSampleTime); // envia el temps des de l'última mostra a la consola sèrie
-        float value2 = particleSensor.getRed();
-        
-        //lastTime2 = millis();
-        //Serial.print("Temps de mostreig: ");
-        //Serial.println(lastTime2-lastTime1);
-
-        // add the new sample to the input data vector
-        input_data.push_back(value); 
-        input_data2.push_back(value2);
-
-        // if we have enough samples to apply the filter
-        if (input_data.size() > enoughSamples/*>= 201*/)
-        {
-            y=0; y2=0;
-            for (int n = enoughSamples/*200*/; n >= 0; n--) 
-            {
-                y += vcoefs1[n] * input_data[input_data.size()-1-n];
-                y2 += vcoefs1[n] * input_data2[input_data2.size()-1-n];
-            }
-
-            // delete the oldest sample from the list
-            input_data.erase(input_data.begin()); 
-            input_data2.erase(input_data2.begin());
-
-            if (i>=enoughSamples/*200*/)
-            {
-                i=0;
-                
-                maxim_heart_rate_and_oxygen_saturation(irBuffer, enoughSamples /*200*/, redBuffer, 
-                                                       &spo2, &validSPO2, &heartRate, &validHeartRate);
-                if ( validHeartRate && validSPO2 ) {
-                    globalValuesVar.setBeatsPerMinute(heartRate);
-                    globalValuesVar.setSpo2Percentage(spo2);
-                } else {
-                    globalValuesVar.setSpo2Percentage(96);
-                }
-
-                globalValuesVar.pushBackHeartRateDataArray( irBuffer, enoughSamples /*200*/ );
-                globalValuesVar.pushBackSpo2DataArray( redBuffer, enoughSamples /*200*/ );
-                Serial.print("Heart rate: ");
-                Serial.print(heartRate);
-                Serial.print(" bpm / SpO2: ");
-                Serial.print(spo2);
-                Serial.println(" %"); 
-                n++;
-            }
-            irBuffer[i]=y;
-            redBuffer[i]=y2;    
-
-            i++;
-            //Serial.println(y); // enviem el resultat a la consola sèrie
-        }
+        if ( dataVisualizer.buttons[2].order ) dataReader.fft(dataStorage, SAMPLING_FREQUENCY, SAMPLES);
+        else dataReader.readData(dataStorage);
     }
-}
-
-/** SPIFFS initialization function
- * 
- * @brief This function initializes the SPIFFS.
- *  
- * @return void.
- *  
- * @details This function initializes the SPIFFS.
- *  
- * @note This function is called once.
- * 
- */
-void initSPIFFS ()
-{
-  if(!SPIFFS.begin()){
-     Serial.println("An Error has occurred while mounting SPIFFS");
-     for(;;);
-  }
-}
-
-/** MAX30102 initialization function
- * 
- * @brief This initializes MAX30102.
- *  
- * @return void.
- *  
- * @details This initializes MAX30102.
- *  
- * @note This function is called in setup.
- * 
- * @see setup().
- * 
- */
-void initMAX30102 ()
-{
-    // Initialize sensor
-    if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) //Use default I2C port, 400kHz speed
-    {
-        Serial.println("MAX30105 was not found. Please check wiring/power. ");
-        while (1);
-    }
-
-    //Setup to sense a nice looking saw tooth on the plotter
-    byte ledBrightness = 0x1F;  //Options: 0=Off to 255=50mA
-    byte sampleAverage = 4;     //Options: 1, 2, 4, 8, 16, 32
-    byte ledMode = 3;           //Options: 1 = Red only, 2 = Red + IR, 3 = Red + IR + Green
-    int sampleRate = 3200;      //Options: 50, 100, 200, 400, 800, 1000, 1600, 3200
-    int pulseWidth = 411;       //Options: 69, 118, 215, 411
-    int adcRange = 4096;        //Options: 2048, 4096, 8192, 16384
-
-    particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); 
-}
-
-/** Read file function
- * 
- * @brief This function reads the file.
- *  
- * @return void.
- *  
- * @details This function reads the file.
- *  
- * @note This function is called in setup.
- * 
- * @see setup().
- * 
- */
-void readFile()
-{
-    if(!SPIFFS.begin(true))
-    {
-        Serial.println("An Error has occurred while mounting SPIFFS");
-        return;
-    }
-
-    File file = SPIFFS.open("/coeficients2.txt");
-    if(!file)
-    {
-        Serial.println("Failed to open file for reading");
-        return;
-    }
-
-    for (int i = 0; i <= enoughSamples; i++)
-    {
-        string stringCoef = file.readStringUntil('\n').c_str();
-        vcoefs1[i] = stof(stringCoef);
-        delay(50);
-    }
-    file.close(); 
-}
-
-/** FFT function
- * 
- * @brief This function does the FFT.
- *  
- * @return void.
- *  
- * @details This function does the FFT.
- *  
- * @note This function is called in setup.
- * 
- * @see setup().
- * 
- */
-void fft()
-{
-    arduinoFFT FFT = arduinoFFT();
-
-    double vReal[SAMPLES];
-    double vImag[SAMPLES];
-    for (int i = 0; i < SAMPLES; i++)
-    {
-        vReal[i] = irBuffer[i];
-        vImag[i] = 0;
-    }
-
-    //FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING);
-    Serial.println("Computing FFT...");
-    FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
-    FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
-    vReal[0] = 0; // Remove the DC component
-
-    // print results
-    Serial.println("FFT results:");
-    for (int i = 0; i < SAMPLES / 2; i++)
-    {
-        float frequency = float(i) * SAMPLING_FREQUENCY / SAMPLES;
-        float magnitude = vReal[i];
-        fundamentalsFreqs x;
-        x.amplitude=magnitude;
-        x.freqsHz=frequency;
-        freqs.push_back(x);
-        
-        Serial.print("Frequency: ");
-        Serial.print(frequency);
-        Serial.print(" Hz, Magnitude: ");
-        Serial.println(magnitude);
-    }
-    globalValuesVar.setFreqs(freqs);               
 }
 
 /** Data tests initialization function
@@ -442,7 +233,7 @@ void fft()
  * @note This function is called once.
  * 
  */
-void fillDataTests ( void * parameter)
+void fillDataTests ( void * parameter )
 {  
     uint32_t margin = 8;
     uint32_t xAxisEnd = 128-128/2;
@@ -534,18 +325,18 @@ void fillDataTests ( void * parameter)
     freqs_temp[6].freqsHz = 40000;
     freqs_temp[6].amplitude = 220;
         
-    globalValuesVar.setBeatsPerMinute(beatsPerMinute_temp[0]);
-    globalValuesVar.setSpo2Percentage(spo2Percentage_temp[0]); 
-    globalValuesVar.setFreqs(freqs_temp);
-    globalValuesVar.pushBackHeartRateDataArray(heartRateData_temp, size);
-    globalValuesVar.pushBackSpo2DataArray(spo2Data_temp, size);
+    dataStorage.setBeatsPerMinute(beatsPerMinute_temp[0]);
+    dataStorage.setSpo2Percentage(spo2Percentage_temp[0]); 
+    dataStorage.setFreqs(freqs_temp);
+    dataStorage.pushBackHeartRateDataArray(heartRateData_temp, size);
+    dataStorage.pushBackSpo2DataArray(spo2Data_temp, size);
     for(;;)
     {
-        globalValuesVar.setBeatsPerMinute(beatsPerMinute_temp[0]);
-        globalValuesVar.setSpo2Percentage(spo2Percentage_temp[0]); 
-        globalValuesVar.setFreqs(freqs_temp);
-        globalValuesVar.pushBackHeartRateDataArray(heartRateData_temp, size);
-        globalValuesVar.pushBackSpo2DataArray(spo2Data_temp, size);
+        dataStorage.setBeatsPerMinute(beatsPerMinute_temp[0]);
+        dataStorage.setSpo2Percentage(spo2Percentage_temp[0]); 
+        dataStorage.setFreqs(freqs_temp);
+        dataStorage.pushBackHeartRateDataArray(heartRateData_temp, size);
+        dataStorage.pushBackSpo2DataArray(spo2Data_temp, size);
         delay(7500);
     }
 }

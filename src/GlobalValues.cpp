@@ -49,11 +49,11 @@ void globalValues::setHeartRateDataArray ( vector<uint32_t> heartRateDataArray )
     this -> heartRateDataArray = heartRateDataArray;
 }
 
-/** Set heart rate data array function
+/** Push back heart rate data array function
  * 
- * @brief This function sets the heart rate data array.
+ * @brief This function pushes back the heart rate data array.
  * 
- * @param heartRateDataArray Heart rate data array.
+ * @param pHeartRateDataArray Heart rate data array.
  * @param size Size of the heart rate data array.
  * 
  */
@@ -77,9 +77,9 @@ void globalValues::setSpo2DataArray ( vector<uint32_t> spo2DataArray )
     this -> spo2DataArray = spo2DataArray;
 }
 
-/** Set SPO2 data array function
+/** Push back SPO2 data array function
  * 
- * @brief This function sets the SPO2 data array.
+ * @brief This function pushes back the SPO2 data array.
  * 
  * @param spo2DataArray SPO2 data array.
  * @param size Size of the SPO2 data array.
@@ -152,6 +152,7 @@ vector<uint32_t> globalValues::getHeartRateDataArray()
  */
 vector<uint32_t> globalValues::getHeartRateDataArray ( uint32_t N )
 {
+    if ( N > heartRateDataArray.size() )return heartRateDataArray;
     vector<uint32_t> result;
     for (uint32_t i = 0; i < N; i++)
     {
@@ -164,16 +165,13 @@ vector<uint32_t> globalValues::getHeartRateDataArray ( uint32_t N )
  * 
  * @brief This function gets the first value of the heartRate array and shifts it.
  * 
- * @return Shifted heart rate data.
+ * @return First value of the heartRate array before shifting.
  * 
  */
 uint32_t globalValues::getFirstValueAndShiftHeartRate()
 {
     uint32_t firstValue = heartRateDataArray[0];
-    for (uint32_t i = 0; i < heartRateDataArray.size(); i++)
-    {
-        heartRateDataArray[i] = heartRateDataArray[i + 1];
-    }
+    heartRateDataArray.erase( heartRateDataArray.begin() );
     return firstValue;
 }
 
@@ -194,12 +192,13 @@ vector<uint32_t> globalValues::getSpo2DataArray()
  * @brief This function returns the N first values of the SPO2 data array.
  * 
  * @param N Size of the returned SPO2 data array.
- * 
+ *
  * @return SPO2 data array.
- * 
+ *  
  */
 vector<uint32_t> globalValues::getSpo2DataArray ( uint32_t N )
 {
+    if ( N > spo2DataArray.size() ) return spo2DataArray;
     vector<uint32_t> result;
     for (uint32_t i = 0; i < N; i++)
     {
@@ -211,17 +210,14 @@ vector<uint32_t> globalValues::getSpo2DataArray ( uint32_t N )
 /** Get first value and shift SPO2 function
  * 
  * @brief This function gets the first value of the spo2 array and shifts it.
- * 
- * @return Shifted spo2 data.
+ *
+ * @return First value of the spo2 array before shifting. 
  * 
  */
 uint32_t globalValues::getFirstValueAndShiftSpo2()
 {
     uint32_t firstValue = spo2DataArray[0];
-    for (uint32_t i = 0; i < spo2DataArray.size(); i++)
-    {
-        spo2DataArray[i] = spo2DataArray[i + 1];
-    }
+    spo2DataArray.erase( spo2DataArray.begin() );
     return firstValue;
 }
 

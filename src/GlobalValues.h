@@ -4,7 +4,8 @@
 #include <Arduino.h>
 #include <vector>
 
-namespace std{
+namespace std
+{
     /** Fundamentals frequencies struct
      * 
      * @brief This struct is the fundamentals frequencies of the device.
@@ -31,8 +32,6 @@ namespace std{
      * @param beatsPerMinute Beats per minute
      * @param spo2Percentage Spo2 percentage
      * @param freqs Fundamentals frequencies
-     * @param pointerHeartRateDataArray Pointer to heart rate data array
-     * @param pointerSpo2DataArray Pointer to spo2 data array
      *
      */
     class globalValues {
@@ -63,13 +62,13 @@ namespace std{
 
             vector<uint32_t> getHeartRateDataArray();
 
-            vector<uint32_t> getSpo2DataArray( uint32_t N );
-
+            vector<uint32_t> getHeartRateDataArray( uint32_t N );
+                        
             uint32_t getFirstValueAndShiftHeartRate();
 
             vector<uint32_t> getSpo2DataArray();
 
-            vector<uint32_t> getHeartRateDataArray( uint32_t N );
+            vector<uint32_t> getSpo2DataArray( uint32_t N );
 
             uint32_t getFirstValueAndShiftSpo2();
 

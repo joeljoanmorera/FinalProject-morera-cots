@@ -4,7 +4,8 @@
 #include <Arduino.h>
 #include <vector>
 
-namespace std{
+namespace std
+{
     /** Button class
      * 
      * @brief This class is the button of the device.
@@ -42,13 +43,12 @@ namespace std{
      * @details This class is used to manage the buttons array of the device.
      * 
      * @param buttons Buttons array
-     * @param numButtons Number of buttons
-     * @param timer Timer for the buttons
      * 
      */
     class buttonsArray{
-        public:
+        vector<Button> buttons;
 
+        public:
             buttonsArray();
 
             buttonsArray& operator =(const buttonsArray& B);
@@ -58,9 +58,6 @@ namespace std{
             void begin(vector<int> buttonPins, bool defaultOrder = true);
 
             void readButtons();
-        
-        private:
-            vector<Button> buttons;
     };
 }
 

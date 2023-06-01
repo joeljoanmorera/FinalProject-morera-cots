@@ -11,18 +11,17 @@
  * 
  * @details This class is used to manage the web page
  * 
- * @param server AsyncWebServer object
- * @param ws AsyncWebSocket object
+ * @param webServer AsyncWebServer object
+ * @param webSocket AsyncWebSocket object
  * @param globalClient AsyncWebSocketClient object
  * 
  */
 class webPage{
-    AsyncWebServer server;
-    AsyncWebSocket ws;
+    AsyncWebServer webServer;
+    AsyncWebSocket webSocket;
     AsyncWebSocketClient * globalClient;
 
     public:
-
         webPage(int port = 80);
 
         void begin(const char* ssid, const char* password);

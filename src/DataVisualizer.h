@@ -5,10 +5,27 @@
 #include "Display.h"
 #include "WebPage.h"
 #include "Button.h"
-namespace std {
-    class globalDataVisualizer
-    {
+
+namespace std 
+{
+    /** Data visualizer class
+     *
+     * @brief This class is the global data visualizer of the device.
+     *
+     * @details This class is used to manage the data visualizer of the device.
+     *
+     * @param display Display object
+     * @param page WebPage object
+     * @param buttons ButtonsArray object
+     *
+     */
+    class globalDataVisualizer {
+        Display display;
+        webPage page;
+        
         public:
+            buttonsArray buttons;
+
             globalDataVisualizer ( const u8g2_cb_t *rotation, uint8_t clock, 
                                    uint8_t data, uint8_t cs, uint8_t dc, uint8_t reset, int port = 80 );
 
@@ -33,13 +50,6 @@ namespace std {
             float getMaxAmplitude( const vector<fundamentalsFreqs>& freqs );
 
             String getJSON ( globalValues& globalValuesVar );
-
-            buttonsArray buttons;
-
-        private:
-
-            Display display;
-            webPage page;
     };
 }
 

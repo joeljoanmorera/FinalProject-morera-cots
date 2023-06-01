@@ -7,16 +7,17 @@
  * @param port Port number.
  *
  */
-webPage::webPage(int port):server(port), ws("/ws")
+webPage::webPage(int port):webServer(port), webSocket("/ws")
 {
     globalClient = NULL;
 }
 
-/** webPage begin
+/** webPage begin function
  * 
  * @brief This function initializes the web.
- *  
- * @return void.
+ * 
+ * @param ssid SSID of the network.
+ * @param password Password of the network.
  *  
  * @details This function initializes the WiFi and the server.
  *  
@@ -33,8 +34,9 @@ void webPage::begin(const char* ssid, const char* password)
  * 
  * @brief This function initializes the WiFi.
  *  
- * @return void.
- *  
+ * @param  ssid SSID of the network.
+ * @param  password Password of the network.
+ * 
  * @details This function initializes the WiFi.
  *  
  * @see begin().
@@ -60,9 +62,7 @@ void webPage::initWiFi(const char* ssid, const char* password)
  * 
  * @brief This function initializes the server.
  *  
- * @return void.
- *  
- * @details This function initializes the server.
+ * @details This function defines the websocket and the html, css and js files.
  *  
  * @see begin(), onWsEvent().
  * 
@@ -70,48 +70,53 @@ void webPage::initWiFi(const char* ssid, const char* password)
 void webPage::initServer()
 {
     // websocker definition
-    ws.onEvent([this](  AsyncWebSocket *server, AsyncWebSocketClient *client, 
+    webSocket.onEvent([this](  AsyncWebSocket *server, AsyncWebSocketClient *client, 
                         AwsEventType type, void *arg, uint8_t *data, size_t len){
         // Call the onWsEvent member function of the current instance of the webPage class
         this->onWsEvent(server, client, type, arg, data, len);
     });
 
-    server.addHandler(&ws);
+    webServer.addHandler(&webSocket);
     
     // define html file
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(SPIFFS, "/index.html", "text/html");
     });
 
     // define css files
-    server.on("/css/stylesheet.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    webServer.on("/css/stylesheet.css", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(SPIFFS, "/css/stylesheet.css", "text/css");
     });
     
     // define js files
-    server.on("/js/main.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    webServer.on("/js/main.js", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(SPIFFS, "/js/main.js", "text/javascript");
     });
-    server.on("/js/heartrate-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    webServer.on("/js/heartrate-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(SPIFFS, "/js/heartrate-chart.js", "text/javascript");
     });
-    server.on("/js/frequencies-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    webServer.on("/js/frequencies-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(SPIFFS, "/js/frequencies-chart.js", "text/javascript");
     });
-    server.on("/js/spo2-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    webServer.on("/js/spo2-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(SPIFFS, "/js/spo2-chart.js", "text/javascript");
     });
 
-    server.begin();
+    webServer.begin();
 }
 
 /** Websocket event function
  * 
  * @brief This function is the event function of the websocket.
+ * 
+ * @param server AsyncWebSocket object.
+ * @param client AsyncWebSocketClient object.
+ * @param type AwsEventType object.
+ * @param arg void pointer.
+ * @param data uint8_t pointer.
+ * @param len size_t object.
  *  
- * @return void.
- *  
- * @details This function is the event function of the websocket.
+ * @details This function defines what to do when a websocket event occurs depending on the type of event.
  *  
  * @see begin(), initServer().
  * 
@@ -134,10 +139,10 @@ void webPage::onWsEvent (AsyncWebSocket * server, AsyncWebSocketClient * client,
 /** Send websocket message function
  * 
  * @brief This function sends a websocket message.
+ * 
+ * @param message Message to send.
  *  
- * @return void.
- *  
- * @details This function sends a websocket message.
+ * @details This function sends a websocket message if there is a client connected.
  * 
  */
 void webPage::sendWsMessage(String message)

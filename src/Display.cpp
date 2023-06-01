@@ -2,12 +2,12 @@
 
 using namespace std;
 
-/** Init function
+/** Display init function
  * 
  * @brief This function initializes the display.
  *
  */
-void Display::init()
+void Display::init ()
 {
     // Display initialization
     begin();                         // Inicialitzate
@@ -19,11 +19,12 @@ void Display::init()
     uint8_t height = getDisplayHeight(); // Get display height : 64
     uint8_t width = getDisplayWidth(); // Get display width : 128
     
-    xAxisBegin      = margin/4;
-    xAxisEnd        = width  - width/2;
-    yAxisBegin      = margin/4;
-    yAxisEnd        = height - margin/2;
-    halfHeight      = height/2;
+    margin = uint32_t(12.5/100 * width);
+    xAxisBegin = margin/4;
+    xAxisEnd   = width  - width/2;
+    yAxisBegin = margin/4;
+    yAxisEnd   = height - margin/2;
+    halfHeight = height/2;
 }
  
 /** Draw axis in the display function
@@ -33,7 +34,7 @@ void Display::init()
  * @param longAxis Choice of the X axis to draw. By default is false.
  *
  */
-void Display::drawAxis(bool longAxis)
+void Display::drawAxis ( bool longAxis )
 {
     this -> drawLine(xAxisBegin, yAxisBegin, xAxisBegin, yAxisEnd);                     // Y-axis
     if (longAxis) this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd + margin, yAxisEnd);  // X-long-axis
@@ -45,27 +46,22 @@ void Display::drawAxis(bool longAxis)
  * @brief This function draws the data in the display.
  *
  * @param dataVector Data to draw.
- * @param choiceBPM Choice of the data to draw.
+ * @param heartRateType Choice of the data to draw.
+ * 
+ * @see getDataWindowSize(), getYAxisBias().
+ * 
  */
-void Display::drawData(vector<uint32_t> dataVector, bool choiceBPM)
+void Display::drawData ( vector<uint32_t> dataVector, bool heartRateType ) 
 {
+    uint32_t actualHeight = 0;
     uint32_t lastHeight = 0;
     uint32_t windowSize = this -> getDataWindowSize();
-    if (choiceBPM)
+    uint32_t yBias = getYAxisBias(heartRateType);
+    for (uint32_t i = 0; i < windowSize; i++)
     {
-        for (uint32_t i = 0; i < windowSize; i++)
-        {
-            this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, halfHeight - dataVector[i]);
-            lastHeight = halfHeight - dataVector[i];
-        }
-    }
-    else
-    {
-        for (uint32_t i = 0; i < windowSize; i++)
-        {
-            this -> drawLine(xAxisBegin + i, lastHeight, xAxisBegin + i, yAxisEnd - margin - dataVector[i]);
-            lastHeight = yAxisEnd - margin - dataVector[i];
-        }
+        actualHeight = yBias - dataVector[i];
+        this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, actualHeight);
+        lastHeight = actualHeight;
     }
 }
 
@@ -74,14 +70,15 @@ void Display::drawData(vector<uint32_t> dataVector, bool choiceBPM)
  * @brief This function prints the measurements in the display.
  *
  * @param value Value to print.
- * @param choiceBPM Choice of the measurement to print.
+ * @param heartRateType Choice of the value to print.
+ * 
  */
-void Display::printMeasurements(int32_t value, bool choiceBPM)
+void Display::printMeasurements ( int32_t value, bool heartRateType )
 {
     this -> setFont(u8g2_font_luBS10_tf);
     String valueString = String(value);
 
-    if (choiceBPM){
+    if (heartRateType){
         this -> setCursor(this -> xAxisEnd + 20, this -> halfHeight + 2*margin);
         this -> print("BPM");
     }else {
@@ -105,8 +102,8 @@ void Display::printMeasurements(int32_t value, bool choiceBPM)
  * @param labels Labels to print.
  * @param normalizedAmplitudes Normalized amplitudes to print.
  * 
- * @note This function expects the labels and the normalized amplitudes to be in the same order.
- *       Also, amplitudes must be normalized between 0 and 1.
+ * @note This function expects the labels and the normalized amplitudes,which should
+ *       be between 0 and 1, in the same order. 
  *
  */
 void Display::drawBars ( const vector<String>& labels, const vector<float>& normalizedAmplitudes )
@@ -138,13 +135,30 @@ void Display::drawBars ( const vector<String>& labels, const vector<float>& norm
     }
 }
 
+/** Get Y axis bias
+ * 
+ * @brief This functions returns the Y axis bias.
+ * 
+ * @param heartRateType Choice of the value to print.
+ * 
+ * @details Depending on which data is visualized a different bias is applied.
+ * 
+ * @return Y axis bias
+ */
+uint32_t Display::getYAxisBias ( bool heartRateType )
+{
+    if (heartRateType) return halfHeight;
+    else return (yAxisEnd - margin/4);
+}
+
 /** Get data window size function
  * 
- * @brief This function returns the size that the data should have in order to be correctly visualized.
+ * @brief This function returns the size that the data should have 
+ *        in order to be correctly visualized.
  *
  * @return Data window size.
  */
-uint32_t Display::getDataWindowSize()
+uint32_t Display::getDataWindowSize ()
 {
     return xAxisEnd - xAxisBegin;
 }

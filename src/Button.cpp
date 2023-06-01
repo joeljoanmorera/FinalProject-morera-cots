@@ -94,6 +94,7 @@ Button& buttonsArray::operator [](int i)
  * @brief This function is the begin function of the buttonsArray.
  *
  * @param buttonPins Buttons' pins array.
+ * @param defaultOrder Choice of the adding a default order
  * 
  */
 void buttonsArray::begin(vector<int> buttonPins, bool defaultOrder)
@@ -121,9 +122,6 @@ void buttonsArray::begin(vector<int> buttonPins, bool defaultOrder)
  * @details This function reads the buttons' values and changes the order of the buttons.
  *  
  * @note This function is called when the timer is activated. 
- *       Therefore, it is called when an interrupt is generated.
- * 
- * @see initButtons(), readButtonsWrapper().
  * 
  */
 void buttonsArray::readButtons()
