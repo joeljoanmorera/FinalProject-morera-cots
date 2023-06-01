@@ -1,13 +1,6 @@
 #ifndef DATAREADER_H
 #define DATAREADER_H
 
-/*
-
-    TO DISCUSS: REDECLARE enoughSamples AS limitSamples VARIABLE
-                IN ORDER TO BETTER UNDERSTANDING OF THE CODE
-
-*/
-
 #include <Arduino.h>
 #include <Wire.h>
 #include <vector>
@@ -60,7 +53,9 @@ namespace std
         vector<float> inputIRData;
         vector<float> inputRedData;
         int filteringIterations = 0; 
-        int n = 0;
+
+        // Confrimation variables
+        bool dataReady = false;
 
         public:
             globalDataReader ( int pEnoughSamples = 200 );
@@ -70,7 +65,7 @@ namespace std
             void initMAX30102 ( byte ledBrightness = 0x1F, byte sampleAverage = 4, byte ledMode = 3, 
                                 int sampleRate = 3200, int pulseWidth = 411, int adcRange = 4096 );
 
-            void readFile ( String fileName = "/coeficients2.txt" );
+            void readFile ( String fileName = "/coefficients.txt" );
 
             void readData ( globalValues& globalValuesVar );
 
@@ -85,6 +80,8 @@ namespace std
             void fft ( globalValues& globalValuesVar, uint8_t SAMPLING_FREQUENCY, uint8_t SAMPLES );
 
             vector<fundamentalsFreqs> getFFTResults ( double* vReal, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY );
+
+            bool isDataReady ();
     };
 }
 

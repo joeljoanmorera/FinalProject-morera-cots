@@ -78,12 +78,6 @@ void globalDataReader::initMAX30102 ( byte ledBrightness, byte sampleAverage, by
  */
 void globalDataReader::readFile ( String fileName)
 {
-    if(!SPIFFS.begin(true))
-    {
-        Serial.println("An Error has occurred while mounting SPIFFS");
-        return;
-    }
-
     File file = SPIFFS.open(fileName);
     if(!file)
     {
@@ -97,6 +91,7 @@ void globalDataReader::readFile ( String fileName)
         vCoefs[i] = stof(stringCoef);
         delay(50);
     }
+  
     file.close(); 
 }
 
@@ -130,6 +125,7 @@ void globalDataReader::readData ( globalValues& globalValuesVar )
             filteringIterations = 0;
             setGlobalValues(globalValuesVar);
             printData();
+            dataReady = true;
         }
         irBuffer[filteringIterations] = resultOfIR;
         redBuffer[filteringIterations] = resultOfRed;    
@@ -301,4 +297,9 @@ vector<fundamentalsFreqs> globalDataReader::getFFTResults ( double* vReal, uint8
         Serial.println(magnitude);
     }
     return freqs;
+}
+
+bool globalDataReader::isDataReady()
+{
+    return dataReady;
 }
