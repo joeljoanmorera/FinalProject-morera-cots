@@ -166,9 +166,10 @@ void globalDataReader::doFiltering ( float& resultOfIR, float& resultOfRed )
     {
         resultOfIR += vCoefs[n] * inputIRData[inputIRData.size() - n - 1];
         resultOfRed += vCoefs[n] * inputRedData[inputRedData.size() - n - 1];
+        
     }
-
-    // delete the oldest sample from the list
+    Serial.println(resultOfIR);
+        // delete the oldest sample from the list
     inputIRData.erase(inputIRData.begin()); 
     inputRedData.erase(inputRedData.begin());
 }
