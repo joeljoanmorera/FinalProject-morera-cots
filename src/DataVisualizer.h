@@ -31,13 +31,17 @@ namespace std
 
             void setup ( vector<int> buttonPins, const char* ssid, const char* password );
 
+            void workInProgressMessage ();
+
             void generateVisualization( globalValues& globalValuesVar );
 
             void generateDisplayVisualization ( globalValues& globalValuesVar );
 
-            void defaultDataVisualitzation ( globalValues& globalValuesVar, uint32_t windowSize, bool heartRateType);
+            /// TODO : elseif in display
 
-            vector<uint32_t> defaultDiscretization ( vector<uint32_t> data, bool heartRateType );
+            void defaultDataVisualitzation ( globalValues& globalValuesVar, uint32_t windowSize, bool heartRateType );
+
+            vector<uint32_t> defaultDiscretization ( vector<uint32_t> data );
 
             uint32_t getMaxValue( vector<uint32_t> data );
 
@@ -45,9 +49,9 @@ namespace std
 
             void getDisplayStyleFundamentalsFrequencies ( vector<fundamentalsFreqs> data, vector<String>& labels, vector<float>& amplitudes );
 
-            String getLabeledFrequency(float data, bool withUnit = true);
+            String getLabeledFrequency ( float data );
 
-            float getMaxAmplitude( const vector<fundamentalsFreqs>& freqs );
+            float getMaxAmplitude ( const vector<fundamentalsFreqs>& freqs );
 
             String getJSON ( globalValues& globalValuesVar );
     };

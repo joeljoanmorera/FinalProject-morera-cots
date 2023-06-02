@@ -67,7 +67,7 @@ namespace std
 
             void readFile ( String fileName = "/coefficients.txt" );
 
-            void readData ( globalValues& globalValuesVar );
+            void readData ( globalValues& globalValuesVar, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY );
 
             void readValuesFromSensor ();
 
@@ -77,7 +77,7 @@ namespace std
             
             void printData ();
 
-            void fft ( globalValues& globalValuesVar, uint8_t SAMPLING_FREQUENCY, uint8_t SAMPLES );
+            void fft ( globalValues& globalValuesVar, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY );
 
             vector<fundamentalsFreqs> getFFTResults ( double* vReal, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY );
 

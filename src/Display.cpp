@@ -46,17 +46,16 @@ void Display::drawAxis ( bool longAxis )
  * @brief This function draws the data in the display.
  *
  * @param dataVector Data to draw.
- * @param heartRateType Choice of the data to draw.
  * 
  * @see getDataWindowSize(), getYAxisBias().
  * 
  */
-void Display::drawData ( vector<uint32_t> dataVector, bool heartRateType ) 
+void Display::drawData ( vector<uint32_t> dataVector ) 
 {
     uint32_t actualHeight = 0;
     uint32_t lastHeight = 0;
     uint32_t windowSize = this -> getDataWindowSize();
-    uint32_t yBias = getYAxisBias(heartRateType);
+    uint32_t yBias = getYAxisBias();
     for (uint32_t i = 0; i < windowSize; i++)
     {
         actualHeight = yBias - dataVector[i];
@@ -115,7 +114,8 @@ void Display::drawBars ( const vector<String>& labels, const vector<float>& norm
         Serial.println("Error: labels and normalizedAmplitudes must have the same size");
         return;
     }
-
+    uint32_t maximumLabelsToPlot = 5;
+    uint32_t labelsPlotted = 0;
     uint32_t xAxisScale = (xAxisEnd + margin/2)/labels.size();
     uint32_t yAxisStep = yAxisEnd/labels.size();
     for (uint8_t i = 0; i < labels.size() ; i++)
@@ -130,8 +130,12 @@ void Display::drawBars ( const vector<String>& labels, const vector<float>& norm
             this -> drawLine(xAxisPlotBegin, yAxisEnd -j, xWidth ,yAxisEnd -j);
         }
         // Plot label
-        this -> setCursor(xAxisEnd + 2*margin, yAxisStep * i + 4/3*margin);
-        this -> print(labels[i]);
+        if ( labelsPlotted <= maximumLabelsToPlot )
+        {
+            this -> setCursor(xAxisEnd + 2*margin, yAxisStep * i + 4/3*margin);
+            this -> print(labels[i]);
+            labelsPlotted++;
+        }
     }
 }
 
@@ -139,16 +143,13 @@ void Display::drawBars ( const vector<String>& labels, const vector<float>& norm
  * 
  * @brief This functions returns the Y axis bias.
  * 
- * @param heartRateType Choice of the value to print.
- * 
  * @details Depending on which data is visualized a different bias is applied.
  * 
  * @return Y axis bias
  */
-uint32_t Display::getYAxisBias ( bool heartRateType )
+uint32_t Display::getYAxisBias ( )
 {
-    if (heartRateType) return halfHeight;
-    else return (yAxisEnd - margin/4);
+    return (yAxisEnd - margin/4);
 }
 
 /** Get data window size function

@@ -31,13 +31,13 @@ namespace std
 
             void drawAxis ( bool longAxis = false );
 
-            void drawData ( vector<uint32_t> dataVector, bool heartRateType );
+            void drawData ( vector<uint32_t> dataVector );
 
             void printMeasurements (int32_t value, bool heartRateType );
 
             void drawBars ( const vector<String>& labels, const vector<float>& amplitudes );
             
-            uint32_t getYAxisBias ( bool heartRateType );
+            uint32_t getYAxisBias ( );
 
             uint32_t getDataWindowSize ();
     };

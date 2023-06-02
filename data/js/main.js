@@ -2,7 +2,6 @@
 const maxDataLength = 32;
 // Arrays
 let heartRateArray = [];
-let spo2Array = [];
 let timeArray = [];
 let freqsHz = [];
 let freqsAmplitude = [];
@@ -22,7 +21,7 @@ socket.onmessage = function (event) {
     // get new data
     var jsonData = JSON.parse(event.data);
 
-    // update bpm and spo2
+    // update beats per minute and spo2
     var beatsPerMinute = jsonData.beatsPerMinute;
     beatsPerMinuteValue = beatsPerMinute + " BPM";
     document.getElementById('heartrate').innerHTML = beatsPerMinuteValue;
@@ -36,10 +35,6 @@ socket.onmessage = function (event) {
     heartRateArray.push(newHeartRateData);
     if (heartRateArray.length >= maxDataLength) heartRateArray.shift();
 
-    var newspo2Data = jsonData.spo2Data;
-    spo2Array.push(newspo2Data);
-    if (spo2Array.length >= maxDataLength) spo2Array.shift();
-    
     if(lastRawTime != 0)
     {
         var actualTime = Date.now();
@@ -57,7 +52,6 @@ socket.onmessage = function (event) {
     if ( timeArray.length > maxDataLength ) timeArray.shift();
     
     cardiogramaChart.update();
-    spo2Chart.update();
     
     // update freqsHz and freqsAmplitude
     var freqsDataHz = jsonData.freqsHz;

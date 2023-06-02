@@ -108,7 +108,7 @@ void globalDataReader::readFile ( String fileName)
  * @see readValuesFromSensor(), doFiltering(), setGlobalValues(), printData().
  *  
  */
-void globalDataReader::readData ( globalValues& globalValuesVar )
+void globalDataReader::readData ( globalValues& globalValuesVar, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY )
 {
     float resultOfIR = 0.0;
     float resultOfRed = 0.0;
@@ -125,6 +125,7 @@ void globalDataReader::readData ( globalValues& globalValuesVar )
             filteringIterations = 0;
             setGlobalValues(globalValuesVar);
             printData();
+            fft(globalValuesVar, SAMPLES, SAMPLING_FREQUENCY);
             dataReady = true;
         }
         irBuffer[filteringIterations] = resultOfIR;
@@ -199,7 +200,6 @@ void globalDataReader::setGlobalValues ( globalValues& globalValuesVar )
         globalValuesVar.setSpo2Percentage(96);
     }
     globalValuesVar.pushBackHeartRateDataArray( irBuffer, enoughSamples /*200*/ );
-    globalValuesVar.pushBackSpo2DataArray( redBuffer, enoughSamples /*200*/ );
 }
 
 /** Print data function
@@ -230,10 +230,12 @@ void globalDataReader::printData ( )
  *         global values variable.
  * 
  */
-void globalDataReader::fft ( globalValues& globalValuesVar, uint8_t SAMPLING_FREQUENCY, uint8_t SAMPLES)
+void globalDataReader::fft ( globalValues& globalValuesVar, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY )
 {
     Serial.println("Computing FFT...");
     
+    /***TODO: GET 4 MAX AND SHOW ITS HZ IN DISPLAY*/
+
     arduinoFFT FFT = arduinoFFT();
     double vReal[SAMPLES];
     double vImag[SAMPLES];
@@ -251,14 +253,6 @@ void globalDataReader::fft ( globalValues& globalValuesVar, uint8_t SAMPLING_FRE
     globalValuesVar.setFreqs( fftResults );
    
     // // FFT from GITHUB COPILOT
-    // arduinoFFT FFT = arduinoFFT();
-    // double vReal[enoughSamples];
-    // double vImag[enoughSamples];
-    // for (int i = 0; i < enoughSamples; i++)
-    // {
-    //     vReal[i] = irBuffer[i];
-    //     vImag[i] = 0;
-    // }
     // FFT.Windowing(vReal, enoughSamples, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
     // FFT.Compute(vReal, vImag, enoughSamples, FFT_FORWARD);
     // FFT.ComplexToMagnitude(vReal, vImag, enoughSamples);

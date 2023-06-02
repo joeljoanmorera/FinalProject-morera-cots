@@ -26,8 +26,8 @@ const int BUTTONS_NUMBER = 3;
 const int BPM_PIN = 26;
 const int SPO2_PIN = 25;
 const int FUNDAMENTALS_PIN = 27;
-const char *ssid = "iPhone de JJ"; // SSID of the WiFi
-const char *password = "onayago1"; // Password of the WiFi
+const char *ssid = "MiFibra-F392"; // SSID of the WiFi
+const char *password = "5QUisHGE"; // Password of the WiFi
 globalValues dataStorage;
 globalDataVisualizer dataVisualizer(U8G2_R0, SCL, SI, CS, RS, RSE);
 globalDataReader dataReader;
@@ -199,7 +199,11 @@ void IRAM_ATTR readButtonsWrapper()
  */
 void visualizeData(void *parameter)
 {
-    while(!dataReader.isDataReady());
+    while(!dataReader.isDataReady())
+    {
+        Serial.println(" Calculating... ");
+        dataVisualizer.workInProgressMessage();
+    }
     for (;;)
     {
             dataVisualizer.generateVisualization(dataStorage);
@@ -223,10 +227,7 @@ void readData(void *parameter)
 {
     for (;;)
     {
-        if (dataVisualizer.buttons[2].order)
-            dataReader.fft(dataStorage, SAMPLING_FREQUENCY, SAMPLES);
-        else
-            dataReader.readData(dataStorage);
+        dataReader.readData(dataStorage, SAMPLES, SAMPLING_FREQUENCY);
     }
 }
 
@@ -248,59 +249,58 @@ void fillDataTests(void *parameter)
     uint32_t xAxisBegin = margin / 4;
     uint32_t size = xAxisEnd - xAxisBegin;
     uint32_t *heartRateData_temp = new uint32_t[size];
-    uint32_t *spo2Data_temp = new uint32_t[size];
     uint32_t j = 0;
     for (uint32_t i = 0; i < size; i++)
     {
         // Little mountain in the middle with a value of yAxisEnd
         if (i < xAxisEnd / 4)
         {
-            spo2Data_temp[i] = 0;
+            heartRateData_temp[i] = 0;
         }
         else if (i < xAxisEnd / 2)
         {
-            spo2Data_temp[i] = j;
+            heartRateData_temp[i] = j;
             j += 3;
         }
         else if (i < 3 * xAxisEnd / 4)
         {
             j -= 3;
-            spo2Data_temp[i] = j;
+            heartRateData_temp[i] = j;
         }
         else
         {
-            spo2Data_temp[i] = 0;
+            heartRateData_temp[i] = 0;
         }
     }
 
-    for (uint32_t i = 0; i < size; i++)
-    {
-        // Little mountain in the middle with a value of yAxisEnd
-        if (i < xAxisEnd / 4)
-        {
-            heartRateData_temp[i] = 0;
-        }
-        else if (i < 3 * xAxisEnd / 8)
-        {
-            heartRateData_temp[i] = j;
-            j += 3;
-        }
-        else if (i < 5 * xAxisEnd / 8)
-        {
-            if (j >= 3)
-                j -= 3;
-            heartRateData_temp[i] = j;
-        }
-        else if (i < 3 * xAxisEnd / 4)
-        {
-            j += 3;
-            heartRateData_temp[i] = j;
-        }
-        else
-        {
-            heartRateData_temp[i] = 0;
-        }
-    }
+    // for (uint32_t i = 0; i < size; i++)
+    // {
+    //     // Little mountain in the middle with a value of yAxisEnd
+    //     if (i < xAxisEnd / 4)
+    //     {
+    //         heartRateData_temp[i] = 0;
+    //     }
+    //     else if (i < 3 * xAxisEnd / 8)
+    //     {
+    //         heartRateData_temp[i] = j;
+    //         j += 3;
+    //     }
+    //     else if (i < 5 * xAxisEnd / 8)
+    //     {
+    //         if (j >= 3)
+    //             j -= 3;
+    //         heartRateData_temp[i] = j;
+    //     }
+    //     else if (i < 3 * xAxisEnd / 4)
+    //     {
+    //         j += 3;
+    //         heartRateData_temp[i] = j;
+    //     }
+    //     else
+    //     {
+    //         heartRateData_temp[i] = 0;
+    //     }
+    // }
 
     int32_t *beatsPerMinute_temp = new int32_t[5];
     int32_t *spo2Percentage_temp = new int32_t[5];
@@ -338,14 +338,12 @@ void fillDataTests(void *parameter)
     dataStorage.setSpo2Percentage(spo2Percentage_temp[0]);
     dataStorage.setFreqs(freqs_temp);
     dataStorage.pushBackHeartRateDataArray(heartRateData_temp, size);
-    dataStorage.pushBackSpo2DataArray(spo2Data_temp, size);
     for (;;)
     {
         dataStorage.setBeatsPerMinute(beatsPerMinute_temp[0]);
         dataStorage.setSpo2Percentage(spo2Percentage_temp[0]);
         dataStorage.setFreqs(freqs_temp);
         dataStorage.pushBackHeartRateDataArray(heartRateData_temp, size);
-        dataStorage.pushBackSpo2DataArray(spo2Data_temp, size);
         delay(7500);
     }
 }

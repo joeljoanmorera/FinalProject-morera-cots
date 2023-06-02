@@ -21,8 +21,14 @@
         <!-- Heartrate -->
         <div class="card">
             <div class="card-header">
-                <h2>Frecuencia cardíaca</h2>
-                <p id="heartrate"> - BPM</p>
+                <div id="bpm-header">
+                    <h2>Frecuencia cardíaca</h2>
+                    <p id="heartrate"> - BPM</p>
+                </div>
+                <div id="spo2-header">
+                    <h2> Saturación en sangre</h2>
+                    <p id="spo2"> - %</p>
+                </div>
             </div> 
             <div class="card-body">
                 <canvas id="cardiograma-chart"></canvas>
@@ -39,17 +45,6 @@
                 <script type="text/javascript" src="./js/frequencies-chart.js"></script>
             </div>
         </div>
-        <!-- SPO2 -->
-        <div class="card">
-            <div class="card-header">
-                <h2>Saturación de oxígeno en sangre</h2>
-                <p id="spo2"> - %</p>
-            </div>
-            <div class="card-body">
-                <canvas id="spo2-chart"></canvas>
-                <script type="text/javascript" src="./js/spo2-chart.js"></script>  
-            </div>
-        </div>     
     </div>
     <!-- Footer -->
     <div id="footer">

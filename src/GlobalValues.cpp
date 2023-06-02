@@ -10,7 +10,6 @@ using namespace std;
 globalValues::globalValues()
 {
     this -> heartRateDataArray = {};
-    this -> spo2DataArray = {};
     this -> beatsPerMinute = 0;
     this -> spo2Percentage = 0;
     this -> freqs = {};
@@ -21,32 +20,18 @@ globalValues::globalValues()
  * @brief This function is the constructor of the global values.
  *
  * @param heartRateDataArray Heart rate data array.
- * @param spo2DataArray SPO2 data array.
  * @param beatsPerMinute Beats per minute.
  * @param spo2Percentage SPO2 percentage.
  * @param freqs Fundamentals frequencies.
  * 
  */
-globalValues::globalValues( vector<uint32_t> heartRateDataArray, vector<uint32_t> spo2DataArray, int32_t beatsPerMinute,
+globalValues::globalValues( vector<uint32_t> heartRateDataArray, int32_t beatsPerMinute,
                             int32_t spo2Percentage, vector<fundamentalsFreqs> freqs )
 {
     this -> heartRateDataArray = heartRateDataArray;
-    this -> spo2DataArray = spo2DataArray;
     this -> beatsPerMinute = beatsPerMinute;
     this -> spo2Percentage = spo2Percentage;
     this -> freqs = freqs;
-}
-
-/** Set heart rate data array function
- * 
- * @brief This function sets the heart rate data array.
- * 
- * @param heartRateDataArray Heart rate data array.
- * 
- */
-void globalValues::setHeartRateDataArray ( vector<uint32_t> heartRateDataArray )
-{
-    this -> heartRateDataArray = heartRateDataArray;
 }
 
 /** Push back heart rate data array function
@@ -65,32 +50,21 @@ void globalValues::pushBackHeartRateDataArray ( uint32_t* pHeartRateDataArray, u
     }
 }
 
-/** Set SPO2 data array function
- * 
- * @brief This function sets the SPO2 data array.
- * 
- * @param spo2DataArray SPO2 data array.
- * 
- */
-void globalValues::setSpo2DataArray ( vector<uint32_t> spo2DataArray )
+void globalValues::shiftHeartRate()
 {
-    this -> spo2DataArray = spo2DataArray;
+    heartRateDataArray.erase( heartRateDataArray.begin() );
 }
 
-/** Push back SPO2 data array function
+/** Set heart rate data array function
  * 
- * @brief This function pushes back the SPO2 data array.
+ * @brief This function sets the heart rate data array.
  * 
- * @param spo2DataArray SPO2 data array.
- * @param size Size of the SPO2 data array.
+ * @param heartRateDataArray Heart rate data array.
  * 
  */
-void globalValues::pushBackSpo2DataArray ( uint32_t* pSpo2DataArray, uint32_t size )
+void globalValues::setHeartRateDataArray ( vector<uint32_t> heartRateDataArray )
 {
-    for (uint32_t i = 0; i < size; i++)
-    {
-        this -> spo2DataArray.push_back ( pSpo2DataArray[i] );
-    }
+    this -> heartRateDataArray = heartRateDataArray;
 }
 
 /** Set beats per minute function
@@ -161,64 +135,16 @@ vector<uint32_t> globalValues::getHeartRateDataArray ( uint32_t N )
     return result;
 }
 
-/** Get first value and shift heart rate function
+/** Get first value of heart rate function
  * 
- * @brief This function gets the first value of the heartRate array and shifts it.
+ * @brief This function gets the first value of the heartRate array.
  * 
- * @return First value of the heartRate array before shifting.
- * 
- */
-uint32_t globalValues::getFirstValueAndShiftHeartRate()
-{
-    uint32_t firstValue = heartRateDataArray[0];
-    heartRateDataArray.erase( heartRateDataArray.begin() );
-    return firstValue;
-}
-
-/** Get SPO2 data array function
- * 
- * @brief This function gets the SPO2 data array.
- * 
- * @return SPO2 data array.
+ * @return First value of the heartRate array.
  * 
  */
-vector<uint32_t> globalValues::getSpo2DataArray()
+uint32_t globalValues::getFirstValueHeartRate()
 {
-    return spo2DataArray;
-}
-
-/** Get SPO2 data array function
- * 
- * @brief This function returns the N first values of the SPO2 data array.
- * 
- * @param N Size of the returned SPO2 data array.
- *
- * @return SPO2 data array.
- *  
- */
-vector<uint32_t> globalValues::getSpo2DataArray ( uint32_t N )
-{
-    if ( N > spo2DataArray.size() ) return spo2DataArray;
-    vector<uint32_t> result;
-    for (uint32_t i = 0; i < N; i++)
-    {
-        result.push_back ( spo2DataArray[i] );
-    }
-    return result;
-}
-
-/** Get first value and shift SPO2 function
- * 
- * @brief This function gets the first value of the spo2 array and shifts it.
- *
- * @return First value of the spo2 array before shifting. 
- * 
- */
-uint32_t globalValues::getFirstValueAndShiftSpo2()
-{
-    uint32_t firstValue = spo2DataArray[0];
-    spo2DataArray.erase( spo2DataArray.begin() );
-    return firstValue;
+    return heartRateDataArray[0];
 }
 
 /** Get beats per minute function

@@ -98,9 +98,6 @@ void webPage::initServer()
     webServer.on("/js/frequencies-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(SPIFFS, "/js/frequencies-chart.js", "text/javascript");
     });
-    webServer.on("/js/spo2-chart.js", HTTP_GET, [](AsyncWebServerRequest *request){
-        request->send(SPIFFS, "/js/spo2-chart.js", "text/javascript");
-    });
 
     webServer.begin();
 }

@@ -39,6 +39,13 @@ void globalDataVisualizer::setup ( vector<int> buttonPins, const char* ssid, con
     page.begin(ssid, password);
 }
 
+void globalDataVisualizer::workInProgressMessage()
+{
+    display.setFont(u8g2_font_luBS10_tf);
+    display.setCursor(display.getDisplayWidth()/4, display.getDisplayHeight()/2);
+    display.print("Calculating...");
+}
+
 /** Generate visualization function
  * 
  * @brief This function generates the visualization.
@@ -53,6 +60,7 @@ void globalDataVisualizer::generateVisualization( globalValues& globalValuesVar 
     // Visualize in web page
     String jsonMessage = getJSON(globalValuesVar);
     page.sendWsMessage(jsonMessage);  
+    globalValuesVar.shiftHeartRate();
     delay(700);
 }
 
@@ -70,15 +78,17 @@ void globalDataVisualizer::generateDisplayVisualization ( globalValues& globalVa
     if (buttons[0].order){
         Serial.println("Heart Rate");
         defaultDataVisualitzation( globalValuesVar, display.getDataWindowSize(), true );
-    }
-    if(buttons[1].order){
-        Serial.println("SPO2");
-        defaultDataVisualitzation( globalValuesVar, display.getDataWindowSize(), false );
-    }
-    if(buttons[2].order){
-        Serial.println("Frequencies");
-        frequenciesDataVisualitzation(globalValuesVar);
-    }       
+    } else {
+        if(buttons[1].order){
+            Serial.println("SPO2");
+            defaultDataVisualitzation( globalValuesVar, display.getDataWindowSize(), false );
+        } else {
+            if(buttons[2].order){
+                Serial.println("Frequencies");
+                frequenciesDataVisualitzation(globalValuesVar);
+            }
+        }
+    }   
 }
 
 /** Default data visualitzation function
@@ -96,18 +106,13 @@ void globalDataVisualizer::generateDisplayVisualization ( globalValues& globalVa
 void globalDataVisualizer::defaultDataVisualitzation ( globalValues& globalValuesVar, uint32_t windowSize, bool heartRateType )
 {
     display.drawAxis();
-    vector<uint32_t> data;
+    vector<uint32_t> data = globalValuesVar.getHeartRateDataArray(windowSize);
     uint32_t value;
-    if ( heartRateType ) {
-        data = globalValuesVar.getHeartRateDataArray(windowSize);
-        value = globalValuesVar.getBeatsPerMinute();
-    } else {
-        data = globalValuesVar.getSpo2DataArray(windowSize);
-        value = globalValuesVar.getSpo2Percentage();
-    }
+    if ( heartRateType ) value = globalValuesVar.getBeatsPerMinute();
+    else value = globalValuesVar.getSpo2Percentage();
 
-    vector<uint32_t> discretizedDataVector = defaultDiscretization(data, heartRateType);
-    display.drawData(discretizedDataVector, heartRateType);
+    vector<uint32_t> discretizedDataVector = defaultDiscretization( data );
+    display.drawData( discretizedDataVector );
     display.printMeasurements(value, heartRateType);
 }
 
@@ -116,18 +121,17 @@ void globalDataVisualizer::defaultDataVisualitzation ( globalValues& globalValue
  * @brief This function discretizes the data.
  *
  * @param data Data to discretize.
- * @param heartRateType Choice of the data to discretize.
  * 
  * @details This function discretizes the data by normalizing it in realation to the maximum value divided by the Y axis bias.
  *          From that we will obtain the height of each value in pixels, being the maximum value the highest permitted value.
  * 
  * @return Discretized data.
  */
-vector<uint32_t> globalDataVisualizer::defaultDiscretization ( vector<uint32_t> data, bool heartRateType )
+vector<uint32_t> globalDataVisualizer::defaultDiscretization ( vector<uint32_t> data )
 {
     vector<uint32_t> discretizedDataVector;
     uint32_t max = getMaxValue(data);
-    uint32_t yBias = display.getYAxisBias(heartRateType);
+    uint32_t yBias = display.getYAxisBias();
     uint32_t yAxisScale = uint32_t(max/yBias);
 
     if (yAxisScale == 0)yAxisScale = 1;
@@ -216,28 +220,24 @@ void globalDataVisualizer::getDisplayStyleFundamentalsFrequencies ( vector<funda
  * @brief This function returns a string with an appropiate style realted to its magnitude
  * 
  * @param data Data to convert into string
- * @param withUnit Choice of the unit to add to the string (by default is true)
  * 
  * @return String of the input data
  * 
  * @see getDisplayStyleFudamentalsFrequencies(), getJSON().
  * 
 */
-String globalDataVisualizer::getLabeledFrequency(float data, bool withUnit)
+String globalDataVisualizer::getLabeledFrequency ( float data )
 {
-    String labelHz = String(data);
-    if(withUnit)labelHz += " ";
+    String labelHz = String(data) + " ";
     if (data/1000 >= 1)
     {
-        labelHz = String(data/1000);
-        if (withUnit)labelHz += " K";
+        labelHz = String(data/1000) + " K";
     }
     if (data/1000000 >= 1)
     {
-        labelHz = String(data/1000000);
-        if (withUnit) labelHz +=" M";
+        labelHz = String(data/1000000) + " M";
     }
-    if (withUnit)labelHz += "Hz";
+    labelHz += "Hz";
     return labelHz;
 }
 
@@ -286,8 +286,7 @@ float globalDataVisualizer::getMaxAmplitude ( const vector<fundamentalsFreqs>& f
 String globalDataVisualizer::getJSON ( globalValues& globalValuesVar )
 {
     String json = "{";
-    json += "\"heartRateData\":" + String(globalValuesVar.getFirstValueAndShiftHeartRate()) + ",";
-    json += "\"spo2Data\": " + String(globalValuesVar.getFirstValueAndShiftSpo2()) + ", ";
+    json += "\"heartRateData\":" + String(globalValuesVar.getFirstValueHeartRate()) + ",";
     json += "\"beatsPerMinute\": " + String(globalValuesVar.getBeatsPerMinute()) + ", ";
     json += "\"spo2Percentage\": " + String(globalValuesVar.getSpo2Percentage()) + ", ";
     json += "\"freqsAmplitude\": [";
@@ -303,10 +302,9 @@ String globalDataVisualizer::getJSON ( globalValues& globalValuesVar )
     }
     json += "], ";
     json += "\"freqsHz\": [";
-    bool withUnit = false;
     for(int i = 0; i < freqs.size(); i++)
     {
-        json += getLabeledFrequency(freqs[i].freqsHz, withUnit);
+        json += String(freqs[i].freqsHz);
         if(i != freqs.size() - 1)
         {
             json += ", ";

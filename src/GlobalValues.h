@@ -36,41 +36,32 @@ namespace std
      */
     class globalValues {
         vector<uint32_t> heartRateDataArray;
-        vector<uint32_t> spo2DataArray;
         vector<fundamentalsFreqs> freqs;
         int32_t beatsPerMinute, spo2Percentage;
 
         public:
             globalValues ();
             
-            globalValues ( vector<uint32_t> heartRateDataArray, vector<uint32_t> spo2DataArray, int32_t beatsPerMinute, 
+            globalValues ( vector<uint32_t> heartRateDataArray, int32_t beatsPerMinute, 
                         int32_t spo2Percentage, vector<fundamentalsFreqs> freqs );
 
-            void setHeartRateDataArray ( vector <uint32_t>heartRateDataArray );
-            
             void pushBackHeartRateDataArray ( uint32_t* pHeartRateDataArray, uint32_t size);
 
-            void setSpo2DataArray ( vector<uint32_t> spo2DataArray );
-
-            void pushBackSpo2DataArray ( uint32_t* pSpo2DataArray, uint32_t size );
+            void setHeartRateDataArray ( vector <uint32_t>heartRateDataArray );
             
             void setBeatsPerMinute ( int32_t beatsPerMinute );
 
             void setSpo2Percentage ( int32_t spo2Percentage );
 
             void setFreqs ( vector<fundamentalsFreqs> freqs);
-
+            
             vector<uint32_t> getHeartRateDataArray();
 
             vector<uint32_t> getHeartRateDataArray( uint32_t N );
                         
-            uint32_t getFirstValueAndShiftHeartRate();
-
-            vector<uint32_t> getSpo2DataArray();
-
-            vector<uint32_t> getSpo2DataArray( uint32_t N );
-
-            uint32_t getFirstValueAndShiftSpo2();
+            uint32_t getFirstValueHeartRate();
+            
+            void shiftHeartRate();
 
             int32_t getBeatsPerMinute();
 
