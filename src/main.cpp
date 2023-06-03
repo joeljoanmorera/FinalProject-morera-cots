@@ -51,8 +51,6 @@ void fillDataTests(void *parameter);
  *
  * @note This function is called once.
  *
- * @see loop().
- *
  */
 void setup()
 {
@@ -97,8 +95,6 @@ void setup()
  *
  * @details This function is empty because all the program is executed in the task.
  *
- * @note This function is called once.
- *
  * @see setup().
  *
  */
@@ -109,8 +105,6 @@ void loop() {}
  * @brief This function initializes the SPIFFS.
  *
  * @return void.
- *
- * @details This function initializes the SPIFFS.
  *
  * @note This function is called once.
  *
@@ -130,7 +124,7 @@ void initSPIFFS()
  *
  * @return void.
  *
- * @details This function initializes the global visualizer.
+ * @details This function initializes the global visualizer and the timer.
  *
  * @note This function is called once.
  *
@@ -182,8 +176,6 @@ void IRAM_ATTR readButtonsWrapper()
  * @details This function visualizes the data in the display and in the web page. This
  * function is executed in one core of the ESP32.
  *
- * @note This function is called once.
- *
  * @see setup().
  *
  */
@@ -206,9 +198,7 @@ void visualizeData(void *parameter)
  *
  * @return void.
  *
- * @details This function gets the data.
- *
- * @note This function is called in setup.
+ * @details This function gets the data. This function is executed in one core of the ESP32.
  *
  * @see setup().
  *

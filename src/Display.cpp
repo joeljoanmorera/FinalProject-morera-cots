@@ -146,7 +146,7 @@ void Display::drawBars ( const vector<String>& labels, const vector<float>& norm
  * 
  * @brief This functions returns the Y axis bias.
  * 
- * @details Depending on which data is visualized a different bias is applied.
+ * @see drawData().
  * 
  * @return Y axis bias
  */

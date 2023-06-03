@@ -28,7 +28,6 @@ namespace std
      * @details This class is used to store the global values of the device.
      * 
      * @param heartRateDataArray Array of heart rate data
-     * @param spo2DataArray Array of spo2 data
      * @param beatsPerMinute Beats per minute
      * @param spo2Percentage Spo2 percentage
      * @param freqs Fundamentals frequencies

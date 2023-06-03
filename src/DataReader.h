@@ -34,7 +34,7 @@ namespace std
      * @param inputIRData Input IR data
      * @param inputRedData Input red data
      * @param filteringIterations Filtering iterations
-     * @param n N
+     * @param dataReady Data ready
      *
      */
     class globalDataReader {

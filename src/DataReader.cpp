@@ -2,10 +2,12 @@
 
 using namespace std;
 
-/** Data reader default constructor
+/** Global data reader constructor
  * 
- * @brief This function is the constructor of the data reader.
- *
+ * @brief This is the constructor of the global data reader class.
+ * 
+ * @param pEnoughSamples Number of samples to apply the filter.
+ * 
  */
 globalDataReader::globalDataReader ( int pEnoughSamples )
 {
@@ -100,6 +102,8 @@ void globalDataReader::readFile ( String fileName)
  * @brief This function reads the data from the sensor.
  *
  * @param globalValuesVar Global values variable.
+ * @param SAMPLES Number of samples.
+ * @param SAMPLING_FREQUENCY Sampling frequency.
  * 
  * @details This functions reads the data from the sensor and, when it has enough samples,
  *          it applies the filter and sends the data to the heart rate algorithm. Finally,
@@ -285,6 +289,13 @@ vector<fundamentalsFreqs> globalDataReader::getFFTResults ( double* vReal, uint8
     return freqs;
 }
 
+/** Is data ready function
+ * 
+ * @brief This function returns if the data is ready.
+ * 
+ * @return True if the data is ready, false if not.
+ * 
+ */
 bool globalDataReader::isDataReady()
 {
     return dataReady;

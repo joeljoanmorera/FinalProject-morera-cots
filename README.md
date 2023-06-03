@@ -1,27 +1,300 @@
-# Ejercicio final : Pulsioximetro 
+# Proyecto final : Pulsioximetro 
+
+En el siguiente repositorio se describe la implementacion de un pulsioximetro, el cual se ha implementado en un ESP32. Este proyecto se ha realizado para la asignatura de Procesadores Digitales (PD) de la Universidad Politecnica de Catalunya (UPC).
+
+> **NOTA**: La explicacion que se muestra a continuacion es una explicacion resumida del proyecto. Para una explicacion mas detallada se puede consultar directamente el codigo, el cual esta comentado siguiendo la documentacion de [Doxygen](https://www.doxygen.nl/index.html).
 
 ## **Funcionamiento**
 
-En el siguiente ejercicio se describe un programa para mostrar por pantalla las medidas que calculan dos dispositivos: el `X` y el `Y`. El funcionamiento del programa se diferencia en 2 etapas muy diferenciadas, cada una ejecutandose en uno de los nucleos del ESP32:
+El funcionamiento de este proyecto se basa en la lectura de los datos del sensor *MAX30102*, el filtrado de estos datos, la obtencion de los datos de interes y la visualizacion de estos datos mediante un *display* y una pagina web.
 
 ```mermaid
   stateDiagram-v2
     direction LR
     [*] --> Lectura
     Lectura --> Filtrado
-    Filtrado --> Obtencion
-    Obtencion --> Visualizacion
+    Filtrado --> Procesamiento
+    Procesamiento --> Visualizacion
     Visualizacion --> Display
     Visualizacion --> WebPage
 ```
 
-### Variables globales
+### Lectura de los datos
 
-Con la finalidad de facilitar el traspaso de datos entre las dos tareas principales, se ha implementado una clase para acceder a estos datos.
+***
+
+Para la lectura de los datos se ha utilizado la libreria `Wire` y `MAX30102` para la comunicacion I2C con el sensor *MAX30102*. Ademas, se ha creado una clase `globalDataReader` que contiene las funciones necesarias para la lectura de los datos. Las funciones de esta clase se han implementado en el nucleo 0 del ESP32.
 
 ###### **Cabecera de la clase**
 
-```cp
+```cpp
+#ifndef DATAREADER_H
+#define DATAREADER_H
+
+#include <Arduino.h>
+#include <Wire.h>
+#include <vector>
+#include <SPIFFS.h>
+
+#include "MAX30105.h"
+#include "heartRate.h"
+#include "arduinoFFT.h"
+#include "spo2_algorithm.h"
+
+#include "GlobalValues.h"
+
+namespace std
+{
+    /** Global data reader class
+     *
+     * @brief This class is the global data reader of the device.
+     *
+     * @details This class is used to manage the global data reader of the device.
+     *
+     * @param particleSensor MAX30105 object
+     * @param enoughSamples Number of samples to be taken
+     * @param irBuffer IR buffer
+     * @param redBuffer Red buffer
+     * @param vCoefs Coefficients of the filter
+     * @param bufferLenght Buffer length
+     * @param spo2Percentage SPO2 percentage
+     * @param heartRate Heart rate
+     * @param validSPO2 Valid SPO2
+     * @param validHeartRate Valid heart rate
+     * @param inputIRData Input IR data
+     * @param inputRedData Input red data
+     * @param filteringIterations Filtering iterations
+     * @param dataReady Data ready
+     *
+     */
+    class globalDataReader {
+        // sensor
+        MAX30105 particleSensor;
+
+        // variables for data reading
+        int enoughSamples;
+        uint32_t* irBuffer;
+        uint32_t* redBuffer;
+        float* vCoefs;
+        int32_t bufferLenght, spo2Percentage, heartRate;
+        int8_t validSPO2, validHeartRate;
+
+        // filter variables
+        vector<float> inputIRData;
+        vector<float> inputRedData;
+        int filteringIterations = 0; 
+
+        // Confrimation variables
+        bool dataReady = false;
+
+        public:
+            globalDataReader ( int pEnoughSamples = 200 );
+
+            void setup ();
+
+            void initMAX30102 ( byte ledBrightness = 0x1F, byte sampleAverage = 4, byte ledMode = 3, 
+                                int sampleRate = 3200, int pulseWidth = 411, int adcRange = 4096 );
+
+            void readFile ( String fileName = "/coefficients.txt" );
+
+            void readData ( globalValues& globalValuesVar, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY );
+
+            void readValuesFromSensor ();
+
+            void doFiltering ( float& resultOfIR, float& resultOfRed );
+
+            void setGlobalValues ( globalValues& globalValuesVar );
+            
+            void printData ();
+
+            void fft ( globalValues& globalValuesVar, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY );
+
+            vector<fundamentalsFreqs> getFFTResults ( double* vReal, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY );
+
+            bool isDataReady ();
+    };
+}
+
+#endif /* DATAREADER_H *
+```
+
+
+#### Filtrado de los datos
+
+Para el filtrado de los datos se ha utilizado la libreria `arduinoFFT` para la transformada de Fourier y la libreria `spo2_algorithm` y `heartRate` para el calculo de la saturacion de oxigeno en sangre y el ritmo cardiaco respectivamente.
+
+La funcion del filtrado, implementada dentro de la clase `globalDataReader`, consiste en la lectura de los datos del sensor, el filtrado de estos datos y la obtencion de los datos de interes.
+
+###### **Código del programa**
+
+```cpp
+/** Read data function
+ * 
+ * @brief This function reads the data from the sensor.
+ *
+ * @param globalValuesVar Global values variable.
+ * @param SAMPLES Number of samples.
+ * @param SAMPLING_FREQUENCY Sampling frequency.
+ * 
+ * @details This functions reads the data from the sensor and, when it has enough samples,
+ *          it applies the filter and sends the data to the heart rate algorithm. Finally,
+ *          the output data is stored in the global values variable and printed.
+ * 
+ * @see readValuesFromSensor(), doFiltering(), setGlobalValues(), printData().
+ *  
+ */
+void globalDataReader::readData ( globalValues& globalValuesVar, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY )
+{
+    float resultOfIR = 0.0;
+    float resultOfRed = 0.0;
+
+    readValuesFromSensor();
+    // we have enough samples to apply the filter
+    if ( inputIRData.size() > enoughSamples )
+    {
+        doFiltering(resultOfIR, resultOfRed);
+
+        //we have enough samples to send to the heart rate algorithm
+        if ( filteringIterations >= enoughSamples )
+        {
+            filteringIterations = 0;
+            setGlobalValues(globalValuesVar);
+            printData();
+            fft(globalValuesVar, SAMPLES, SAMPLING_FREQUENCY);
+            dataReady = true;
+        }
+        irBuffer[filteringIterations] = resultOfIR;
+        redBuffer[filteringIterations] = resultOfRed;    
+        filteringIterations++;
+    }
+}
+
+/** Read values from sensor function
+ * 
+ * @brief This function reads the values from the sensor and stores the values in its
+ *        respective arrays.
+ * 
+ * @see readData().
+ * 
+ */
+void globalDataReader::readValuesFromSensor ( )
+{
+    // read the value from the sensor
+    float valueIR = particleSensor.getIR();
+    float valueRed = particleSensor.getRed();
+
+    // add the new sample to the input data vector
+    inputIRData.push_back(valueIR); 
+    inputRedData.push_back(valueRed);
+}
+
+/** Do filtering function
+ * 
+ * @brief This function does the filtering of the input data and stores it.
+ * 
+ * @param resultOfIR Result of the convolution of the filter and the IR array.
+ * @param resultOfRed Result of the convolution of the filter and the Red array. 
+ * 
+ */
+void globalDataReader::doFiltering ( float& resultOfIR, float& resultOfRed )
+{
+    for (int n = enoughSamples; n >= 0; n--) 
+    {
+        resultOfIR += vCoefs[n] * inputIRData[inputIRData.size() - n - 1];
+        resultOfRed += vCoefs[n] * inputRedData[inputRedData.size() - n - 1];
+        
+    }
+    // delete the oldest sample from the list
+    inputIRData.erase(inputIRData.begin()); 
+    inputRedData.erase(inputRedData.begin());
+}
+```
+
+#### FFT
+
+La funcion de la FFT, implementada dentro de la clase `globalDataReader`, consiste en la aplicacion de la FFT a los datos y la obtencion de las frecuencias fundamentales.
+
+###### **Código del programa**
+
+```cpp
+/** FFT function
+ * 
+ * @brief This function applies the FFT to the data.
+ * 
+ * @param globalValuesVar Global values variable.
+ * @param SAMPLING_FREQUENCY Sampling frequency.
+ * @param SAMPLES Number of samples.
+ * 
+ * @details This function applies the FFT to the data and stores the results in the
+ *         global values variable.
+ * 
+ */
+void globalDataReader::fft ( globalValues& globalValuesVar, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY )
+{
+    Serial.println("Computing FFT...");
+    
+    /***TODO: GET 4 MAX AND SHOW ITS HZ IN DISPLAY*/
+
+    arduinoFFT FFT = arduinoFFT();
+    double vReal[SAMPLES];
+    double vImag[SAMPLES];
+    for (int i = 0; i < SAMPLES; i++)
+    {
+        vReal[i] = irBuffer[i];
+        vImag[i] = 0;
+    }
+
+    FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
+    FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
+    vReal[0] = 0; // Remove the DC component
+
+    vector<fundamentalsFreqs> fftResults = getFFTResults( vReal, SAMPLES, SAMPLING_FREQUENCY );
+    globalValuesVar.setFreqs( fftResults );
+}
+
+/** Get FFT results function
+ * 
+ * @brief This function gets the FFT results.
+ * 
+ * @param vReal Real part of the FFT.
+ * @param SAMPLES Number of samples.
+ * @param SAMPLING_FREQUENCY Sampling frequency.
+ * 
+ * @return Vector of fundamentals frequencies.
+ * 
+ */
+vector<fundamentalsFreqs> globalDataReader::getFFTResults ( double* vReal, uint8_t SAMPLES, uint8_t SAMPLING_FREQUENCY )
+{
+    Serial.println("FFT results:");
+
+    vector<fundamentalsFreqs> freqs;
+    for (int i = 0; i < SAMPLES / 2; i++)
+    {
+        float frequency = float(i) * SAMPLING_FREQUENCY / SAMPLES;
+        float magnitude = vReal[i];
+        fundamentalsFreqs x;
+        x.amplitude=magnitude;
+        x.freqsHz=frequency;
+        freqs.push_back(x);
+        
+        Serial.print("Frequency: ");
+        Serial.print(frequency);
+        Serial.print(" Hz, Magnitude: ");
+        Serial.println(magnitude);
+    }
+    return freqs;
+}
+```
+
+### Guardado de los datos
+
+***
+
+Con la finalidad de facilitar el traspaso de datos entre las dos tareas principales, se ha implementado una clase para acceder y modificar estos datos. 
+
+###### **Cabecera de la clase**
+
+```cpp
 #ifndef GLOBALVALUES_H
 #define GLOBALVALUES_H
 
@@ -52,7 +325,6 @@ namespace std
      * @details This class is used to store the global values of the device.
      * 
      * @param heartRateDataArray Array of heart rate data
-     * @param spo2DataArray Array of spo2 data
      * @param beatsPerMinute Beats per minute
      * @param spo2Percentage Spo2 percentage
      * @param freqs Fundamentals frequencies
@@ -60,41 +332,32 @@ namespace std
      */
     class globalValues {
         vector<uint32_t> heartRateDataArray;
-        vector<uint32_t> spo2DataArray;
         vector<fundamentalsFreqs> freqs;
         int32_t beatsPerMinute, spo2Percentage;
 
         public:
             globalValues ();
             
-            globalValues ( vector<uint32_t> heartRateDataArray, vector<uint32_t> spo2DataArray, int32_t beatsPerMinute, 
+            globalValues ( vector<uint32_t> heartRateDataArray, int32_t beatsPerMinute, 
                         int32_t spo2Percentage, vector<fundamentalsFreqs> freqs );
 
-            void setHeartRateDataArray ( vector <uint32_t>heartRateDataArray );
-            
             void pushBackHeartRateDataArray ( uint32_t* pHeartRateDataArray, uint32_t size);
 
-            void setSpo2DataArray ( vector<uint32_t> spo2DataArray );
-
-            void pushBackSpo2DataArray ( uint32_t* pSpo2DataArray, uint32_t size );
+            void setHeartRateDataArray ( vector <uint32_t>heartRateDataArray );
             
             void setBeatsPerMinute ( int32_t beatsPerMinute );
 
             void setSpo2Percentage ( int32_t spo2Percentage );
 
             void setFreqs ( vector<fundamentalsFreqs> freqs);
-
+            
             vector<uint32_t> getHeartRateDataArray();
 
             vector<uint32_t> getHeartRateDataArray( uint32_t N );
                         
-            uint32_t getFirstValueAndShiftHeartRate();
-
-            vector<uint32_t> getSpo2DataArray();
-
-            vector<uint32_t> getSpo2DataArray( uint32_t N );
-
-            uint32_t getFirstValueAndShiftSpo2();
+            uint32_t getFirstValueHeartRate();
+            
+            void shiftHeartRate();
 
             int32_t getBeatsPerMinute();
 
@@ -106,285 +369,11 @@ namespace std
 #endif /* GLOBALVALUES_H */
 ```
 
-### Lectura de los datos
-
-#### Filtrado de los datos
-
-Para el filtrado de los datos se ha utilizado un filtro FIR, el cual se ha implementado en el nucleo 0 del ESP32. El filtro FIR se ha implementado mediante la libreria `FIRFilter`, la cual se ha modificado para que se pueda utilizar con el ESP32. El filtro FIR se ha implementado con una frecuencia de muestreo de 100Hz y una frecuencia de corte de 5Hz.
-
-#### Obtencion de los datos
-
-Para la obtencion de los datos se ha utilizado un sensor MAX30102, el cual se ha conectado al ESP32 mediante el protocolo I2C. Para facilitar la comunicacion se ha utilizado la libreria `Wire`. El sensor MAX30102 se ha conectado al ESP32 mediante 4 pines, los cuales se muestran en la siguiente tabla con su correspondiente descripcion:
-
-|PIN MAX30102| PIN ESP32 | Descripción |
-|------------|-----------|-------------|
-|SCL         |GPIO 22    |I2C Clock    |
-|SDA         |GPIO 21    |I2C Data     |
-|VDD         |3V3        |VCC          |
-|GND         |GND        |GND          |
-
-###### **Código del programa**
-
-- **platformio.ini:**
-
-```ini
-[env:esp32doit-devkit-v1]
-platform = espressif32
-board = esp32doit-devkit-v1
-framework = arduino
-monitor_speed = 115200
-monitor_port = /dev/ttyUSB0
-lib_deps =  sparkfun/SparkFun MAX3010x Pulse and Proximity Sensor Library@^1.1.2
-```
-- **main.cpp:**
-
-```cpp
-```
-
-###### **Salida del puerto serie**
-
-```
-Determining signal rate ......
-Signal determining done!
-Heart Rate : 136         HRvalid : 1     Saturation in oxygen : 75       SPO2Valid : 1
-Heart Rate : 150         HRvalid : 1     Saturation in oxygen : 69       SPO2Valid : 1
-Heart Rate : 60          HRvalid : 1     Saturation in oxygen : 34       SPO2Valid : 1
-Heart Rate : 88          HRvalid : 1     Saturation in oxygen : 93       SPO2Valid : 1
-Heart Rate : 125         HRvalid : 1     Saturation in oxygen : 72       SPO2Valid : 1
-Heart Rate : 107         HRvalid : 1     Saturation in oxygen : 99       SPO2Valid : 1
-[...]
-```
+### Visualizacion de los datos
 
 ***
 
-### Obtencion de los datos
-
-Con tal de transmitir los datos obtenidos por el sensor MAX30102 se ha utilizado una clase global `globalValues`, la cual contiene las variables globales que se utilizan en el programa. A continuación podemos ver el código que confroma la clase:
-
-###### **Código del programa**
-
-- **platformio.ini:**
-
-```ini
-[env:esp32doit-devkit-v1]
-platform = espressif32
-board = esp32doit-devkit-v1
-framework = arduino
-monitor_speed = 115200
-monitor_port = /dev/ttyUSB0
-lib_deps =  olikraus/U8g2@^2.34.17
-```
-- **main.cpp:**
-
-```cpp
-/** Fundamentals frequencies struct
- * 
- * @brief This struct is the fundamentals frequencies of the device.
- *
- */
-struct fundamentalsFreqs{
-    String freqsHz;
-    int amplitude;
-};
-
-/** Global values class
- * 
- * @brief This class is the global values of the device.
- *
- */
-class globalValues {
-    int32_t* heartRateDataArray;
-    int32_t* spo2DataArray;
-    int32_t beatsPerMinute, spo2Percentage;
-    vector <fundamentalsFreqs> freqs;
-    
-    public:
-        /** Global values default constructor
-         * 
-         * @brief This function is the constructor of the global values.
-         *
-         */
-        globalValues()
-        {
-            this -> heartRateDataArray = 0;
-            this -> spo2DataArray = 0;
-            this -> beatsPerMinute = 0;
-            this -> spo2Percentage = 0;
-            this -> freqs = {};
-        }
-        
-        /** Global values constructor
-         * 
-         * @brief This function is the constructor of the global values.
-         *
-         * @param heartRateDataArray Heart rate data array.
-         * @param spo2DataArray SPO2 data array.
-         * @param beatsPerMinute Beats per minute.
-         * @param spo2Percentage SPO2 percentage.
-         * @param freqs Fundamentals frequencies.
-         */
-        globalValues(int32_t* heartRateDataArray, int32_t* spo2DataArray, int32_t beatsPerMinute, int32_t spo2Percentage, vector<fundamentalsFreqs> freqs)
-        {
-            this -> heartRateDataArray = heartRateDataArray;
-            this -> spo2DataArray = spo2DataArray;
-            this -> beatsPerMinute = beatsPerMinute;
-            this -> spo2Percentage = spo2Percentage;
-            this -> freqs = freqs;
-        }
-
-        /** Set heart rate data array function
-         * 
-         * @brief This function sets the heart rate data array.
-         * 
-         * @param heartRateDataArray Heart rate data array.
-         */
-        void setHeartRateDataArray(int32_t* heartRateDataArray)
-        {
-            this -> heartRateDataArray = heartRateDataArray;
-        }
-
-        /** Set SPO2 data array function
-         * 
-         * @brief This function sets the SPO2 data array.
-         * 
-         * @param spo2DataArray SPO2 data array.
-         */
-        void setSpo2DataArray(int32_t* spo2DataArray)
-        {
-            this -> spo2DataArray = spo2DataArray;
-        }
-
-        /** Set beats per minute function
-         * 
-         * @brief This function sets the beats per minute.
-         * 
-         * @param beatsPerMinute Beats per minute.
-         */
-        void setBeatsPerMinute(int32_t beatsPerMinute)
-        {
-            this -> beatsPerMinute = beatsPerMinute;
-        }
-
-        /** Set SPO2 percentage function
-         * 
-         * @brief This function sets the SPO2 percentage.
-         * 
-         * @param spo2Percentage SPO2 percentage.
-         */
-        void setSpo2Percentage(int32_t spo2Percentage)
-        {
-            this -> spo2Percentage = spo2Percentage;
-        }
-
-        /** Set fundamentals frequencies function
-         * 
-         * @brief This function sets the fundamentals frequencies.
-         * 
-         * @param freqs Fundamentals frequencies.
-         */
-        void setFreqs(vector<fundamentalsFreqs> freqs)
-        {
-            this -> freqs = freqs;
-        }
-
-        /** Get heart rate data array function
-         * 
-         * @brief This function gets the heart rate data array.
-         * 
-         * @return Heart rate data array.
-         */
-        int32_t* getHeartRateDataArray()
-        {
-            return heartRateDataArray;
-        }
-
-        /** Get SPO2 data array function
-         * 
-         * @brief This function gets the SPO2 data array.
-         * 
-         * @return SPO2 data array.
-         */
-        int32_t* getSpo2DataArray()
-        {
-            return spo2DataArray;
-        }
-
-        /** Get beats per minute function
-         * 
-         * @brief This function gets the beats per minute.
-         * 
-         * @return Beats per minute.
-         */
-        int32_t getBeatsPerMinute()
-        {
-            return beatsPerMinute;
-        }
-
-        /** Get SPO2 percentage function
-         * 
-         * @brief This function gets the SPO2 percentage.
-         * 
-         * @return SPO2 percentage.
-         */
-        int32_t getSpo2Percentage()
-        {
-            return spo2Percentage;
-        }
-
-        /** Get fundamentals frequencies function
-         * 
-         * @brief This function gets the fundamentals frequencies.
-         * 
-         * @return Fundamentals frequencies.
-         */
-        vector<fundamentalsFreqs> getFreqs()
-        {
-            return freqs;
-        }
-
-        /** Get JSON function
-         * 
-         * @brief This function gets the JSON of the global values.
-         * 
-         * @return JSON of the global values.
-         */
-        String getJson()
-        {
-            String json = "{";
-            json += "\"heartRateDataArray\": [";
-            for(int i = 0; i < 100; i++)
-            {
-                json += String(heartRateDataArray[i]);
-                if(i != 99)
-                {
-                    json += ",";
-                }
-            }
-            json += "],";
-            json += "\"spo2DataArray\": [";
-            for(int i = 0; i < 100; i++)
-            {
-                json += String(spo2DataArray[i]);
-                if(i != 99)
-                {
-                    json += ",";
-                }
-            }
-            json += "],";
-            json += "\"beatsPerMinute\": " + String(beatsPerMinute) + ",";
-            json += "\"spo2Percentage\": " + String(spo2Percentage) + ",";
-            json += "]";
-            json += "}";
-            return json;
-        }
-};
-
-globalValues globalValuesVar;
-```
-
-### Visualizacion de los datos
-
-En la visualizacion de los datos se han implementado de dos maneras diferentes para ver los datos, una por un parte por el display y por otra mediante una pagina web. Ambas se ejecutan en el nucleo 1 del ESP32.
+Para la visualizacion de los datos se ha utilizado un display y una pagina web. Para la implementacion de estos se ha utilizado la libreria `SPI` y `U8g2lib` para el display y la libreria `WiFi` y `ESPAsyncWebServer` para la pagina web. Ambos metodos de visualizacion se han implementado en una clase `globalDataVisualizer` que contiene como atributos un clase `Display` y una clase `WebPage`. Las funciones de esta clase se han implementado en el nucleo 1 del ESP32.
 
 #### Display
 
@@ -406,555 +395,248 @@ El display se connecta al ESP32 mediante 7 pines, los cuales se muestran en la s
 
 El display se ha programado para que muestre tres tipos de datos, el ritmo cardiaco, el porcentaje de oxigeno en sangre y las frecuencias fundamentales. Para ello se ha creado una clase `Display` que hereda de la clase `U8G2_ST7565_ERC12864_1_4W_SW_SPI` de la libreria `U8g2lib`. Esta clase contiene las funciones necesarias para mostrar los datos en el display.
 
-Con tal de cambiar los datos que se muestran en el display se ha creado una funcion `updateDisplay` que se encarga de actualizar los datos de ritmo cardiaco y porcentaje de oxigeno que se muestran en el display. Por otra parte, para mostrar las frecuencias fundamentales se ha creado una funcion `updateFreqs` que se encarga de actualizar los datos que se muestran, y `drawFreqs` que se encarga de mostrar las frecuencias fundamentales en el display. Cabe destacar que el grafico para mostrar las frecuencias se adapta a la cantidad que se desean mostrar, con un maximo de 7, y a la amplitud de las frecuencias, por lo que si una frecuencia es muy grande, el grafico se adaptara para que se pueda ver.
+Dentro de la clase `Display` se han implementado las siguientes funciones:
 
-Se puede alternar entre los modos de visualizacion mediante tres pulsadores que cambian entre los estados descritos. Para la implementacion de estos se ha definido una clase `Button` y una funcion `buttonManagement` que se encarga de filtrar los pulsos de los botones y cambiar el estado de la variable `orden` a 1 si se pasa el filtro anti-rebote.
+- `init()`: Esta funcion inicializa el display.
+- `drawAxis()`: Esta funcion dibuja los ejes del display.
+- `drawData()`: Esta funcion dibuja los datos en el display.
+- `printMeasurements()`: Esta funcion imprime los datos en el display.
+- `drawBars()`: Esta funcion dibuja las barras en el display.
+- `getYAxisBias()`: Esta funcion devuelve el valor del eje Y.
+- `getDataWindowSize()`: Esta funcion devuelve el tamaño de la ventana de datos.
 
-###### **Código del programa**
-
-- **platformio.ini:**
-
-```ini
-[env:esp32doit-devkit-v1]
-platform = espressif32
-board = esp32doit-devkit-v1
-framework = arduino
-monitor_speed = 115200
-monitor_port = /dev/ttyUSB0
-lib_deps =  olikraus/U8g2@^2.34.17
-```
-- **main.cpp:**
+Se puede alternar entre los modos de visualizacion mediante tres pulsadores que cambian entre los estados descritos. Para la implementacion de estos se ha definido una clase `Button` y una funcion `readButtons`, que se ejecuta mediante interrupciones por timer, que se encarga de filtrar los pulsos de los botones y cambiar el estado de la variable `orden` a 1 si se pasa el filtro anti-rebote. Esta funcion se ha implementado como su puede ver a continuacion:
 
 ```cpp
-#define SCL 18
-#define SI 23
-#define CS 5
-#define RS 32
-#define RSE 33
-
-// CONSTANTS
-//Pin distribution variables
-const int BUTTON_NUMBER = 3;
-const int BPM_PIN = 25;
-const int SPO2_PIN = 26;
-const int FUNDAMENTALS_PIN = 27;
-
-/** Button class
- * 
- * @brief This class is the button of the device.
- *
- */
-class Button{
-  public:
-    //VARS
-    uint8_t pin;                                              
-    bool val_act, val_ant, cambioact, cambioanterior, orden;  
-    //API
-
-    /** Button default constructor
-     * 
-     * @brief This function is the constructor of the button.
-     *
-     */
-    Button(){}
-
-    /** Button constructor
-     * 
-     * @brief This function is the constructor of the button.
-     *
-     * @param PPIN Pin of the button.
-     */
-    Button(uint8_t PPIN)                                      
-    {
-      pin = PPIN;
-      val_ant = 1;
-      orden = 0;
-    }
-
-    /** Button = operator
-     * 
-     * @brief This function is the = operator of the button.
-     *
-     * @param B Button.
-     * @return Button.
-     */
-    Button& operator =(const Button& B)                             
-    {
-      if (this != &B)
-      {
-        this -> pin = B.pin;
-        this -> val_act = B.val_act;
-        this -> val_ant = B.val_ant;
-        this -> cambioact = B.cambioact;
-        this -> cambioanterior = B.cambioanterior;
-        this -> orden = B.orden;
-      }
-      return(*this);
-    } 
-};
-
-/** Display class
- * 
- * @brief This class is the display of the device.
- *
- */
-class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI {
-    public:
-        int8_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, halfHeight;
-        int8_t margin = 8;
-
-        /** Display constructor
-         * 
-         * @brief This function is the constructor of the display.
-         *
-         * @param rotation Rotation of the display.
-         * @param clockPin Clock pin of the display.
-         * @param dataPin Data pin of the display.
-         * @param csPin Chip select pin of the display.
-         * @param dcPin Data/Command pin of the display.
-         * @param resetPin Reset pin of the display.
-         */
-        using U8G2_ST7565_ERC12864_1_4W_SW_SPI::U8G2_ST7565_ERC12864_1_4W_SW_SPI;    
-
-        /** Init function
-         * 
-         * @brief This function initializes the display.
-         *
-         */
-        void init()
-        {
-            // Display initialization
-            this -> begin();                         // Inicialitzate
-            this -> setContrast (10);                // Contraste
-            this -> enableUTF8Print();               // Visualize UTF-8 characters
-
-            //Axis
-            uint8_t height = this -> getDisplayHeight(); // Get display height : 64
-            uint8_t width = this -> getDisplayWidth(); // Get display width : 128
-            
-            this -> xAxisBegin      = margin/4;
-            this -> xAxisEnd        = width  - width/2;
-            this -> yAxisBegin      = margin/4;
-            this -> yAxisEnd        = height - margin/2;
-            this -> halfHeight      = height/2;
-        }
-
-        /** Draw axis in the display function
-         * 
-         * @brief This function draws the axis in the display.
-         *
-         */
-        void drawAxis()
-        {
-            this -> drawLine(xAxisBegin, yAxisBegin, xAxisBegin, yAxisEnd);                // Y-axis
-            this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd, yAxisEnd);                    // X-axis
-        }
-
-        /** Draw long axis in the display function
-         * 
-         * @brief This function draws the long axis in the display.
-         *
-         */
-        void drawLongAxis()
-        {
-            this -> drawLine(xAxisBegin, yAxisBegin, xAxisBegin, yAxisEnd);                // Y-axis
-            this -> drawLine(xAxisBegin, yAxisEnd, xAxisEnd + margin, yAxisEnd);           // X-axis
-        }
-        
-        /** Print measurements function
-         * 
-         * @brief This function prints the measurements in the display.
-         *
-         * @param value Value to print.
-         * @param choiceBPM Choice of the measurement to print.
-         */
-        void printMeasurements(int8_t value, bool choiceBPM)
-        {
-            this -> setFont(u8g2_font_luBS10_tf);
-            String valueString = String(value);
-
-            if (choiceBPM){
-                this -> setCursor(this -> xAxisEnd + 20, this -> halfHeight + 2*margin);
-                this -> print("BPM");
-            }else {
-                valueString += " %";
-                this -> setCursor(this -> xAxisEnd + 20, this -> halfHeight + 2*margin);
-                this -> print("SPO2");
-            }
-
-            if (valueString.length() >= 3){
-                this -> setCursor(this -> xAxisEnd + 20, this -> halfHeight );
-            }else {
-                this -> setCursor(this -> xAxisEnd + 20 + margin, this -> halfHeight);
-            }
-            this -> print(valueString);
-        }
-        
-        /** Get max value function
-         * 
-         * @brief This function gets the max value.
-         *
-         * @param dataVector Data to get the max value.
-         * @return Max value.
-         */
-        int8_t getMaxValue(int8_t* dataVector)
-        {
-            int max = 0;
-            for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-            {
-                if (abs(dataVector[i]) > max)
-                {
-                    max = dataVector[i];
-                }
-            }
-            return max;
-        }
-
-        /** Discretize data function
-         * 
-         * @brief This function discretizes the data.
-         *
-         * @param dataVector Data to discretize.
-         * @return Discretized data.
-         */
-        int8_t* discretizeData(int8_t* dataVector, bool choiceBPM)
-        {
-            int8_t* discretizedDataVector = new int8_t[xAxisEnd - xAxisBegin];
-            int8_t max = getMaxValue(dataVector);
-            int8_t yAxisScale;
-            if (choiceBPM){
-                yAxisScale =int(max/(halfHeight - margin));
-            } else {
-                yAxisScale = int(max/(yAxisEnd - margin)); 
-            } 
-
-            if (yAxisScale == 0)yAxisScale = 1;
-
-            for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-            {
-                discretizedDataVector[i] = int(dataVector[i]/yAxisScale);
-            }
-            return discretizedDataVector;
-        }
-
-        /** Draw data function
-         * 
-         * @brief This function draws the data in the display.
-         *
-         * @param dataVector Data to draw.
-         * @param choiceBPM Choice of the data to draw.
-         */
-        void drawData(int8_t* dataVector, bool choiceBPM)
-        {
-            int8_t lastHeight = 0;
-            if (choiceBPM)
-            {
-                for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-                {
-                    this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, halfHeight - dataVector[i]);
-                    lastHeight = halfHeight - dataVector[i];
-                }   
-            }
-            else
-            {
-                for (uint8_t i = 0; i < xAxisEnd - xAxisBegin; i++)
-                {
-                    this -> drawLine(xAxisBegin + i, lastHeight, xAxisBegin + i, yAxisEnd - margin - dataVector[i]);
-                    lastHeight = yAxisEnd - margin - dataVector[i];
-                }
-            }
-        }
-        
-        /** Update data function
-         * 
-         * @brief This function updates the data in the display.
-         *
-         * @param array Array of data to update.
-         * @param value Value to update.
-         * @param choiceBPM Choice of the data to update.
-         */
-        void updateData(int8_t* array, int8_t value, bool choiceBPM)
-        {
-            this -> drawAxis();
-            int8_t* discretizedArray = this -> discretizeData(array, choiceBPM);
-            this -> drawData(discretizedArray, choiceBPM);
-            this -> printMeasurements(value, choiceBPM);
-        }
-        
-        /** Get max amplitude function
-         * 
-         * @brief This function gets the max amplitude.
-         *
-         * @param freqs Vector of frequencies.
-         * @return Max amplitude.
-         */
-        int getMaxAmplitude(const vector<fundamentalsFreqs>& freqs)
-        {
-            int max = 0;
-            for (uint8_t i = 0; i < freqs.size(); i++)
-            {
-                if (freqs[i].amplitude > max)
-                {
-                    max = freqs[i].amplitude;
-                }
-            }
-            return max;
-        }
-
-        /** Draw frequencies function
-         * 
-         * @brief This function draws the frequencies in the display.
-         *
-         * @param freqs Vector of frequencies to draw.
-         */
-        void drawFreqs(const vector<fundamentalsFreqs>& freqs)
-        {
-            int max = getMaxAmplitude(freqs);
-            int yAxisScale = max/yAxisEnd;
-            int xAxisScale = (xAxisEnd + margin/2)/freqs.size();
-            int yAxisStep = yAxisEnd/freqs.size();
-            this -> setFont(u8g2_font_tinyunicode_tf);
-
-            for (uint8_t i = 0; i < freqs.size() ; i++)
-            {
-                // Plot amplitude of each freq
-                int xAxisPlotBegin = xAxisScale*i + xAxisScale/2;
-                int xWidth = int(xAxisPlotBegin + xAxisScale/5);
-                int8_t totalPixelValues = int(freqs[i].amplitude/yAxisScale);
-
-                for (int8_t j = 0; j < totalPixelValues; j++)
-                {
-                    this -> drawLine(xAxisPlotBegin, yAxisEnd -j, xWidth ,yAxisEnd -j);
-                }
-
-                // Plot freq in Hz
-                this -> setCursor(xAxisEnd + 2*margin, yAxisStep * i + 4/3*margin);
-                this -> print(freqs[i].freqsHz);
-            }
-        }
-
-        /** Update frequencies function
-         * 
-         * @brief This function updates the frequencies in the display.
-         *
-         * @param freqs Vector of frequencies to update.
-         */
-        void updateFreqs(const vector<fundamentalsFreqs>& freqs)
-        {
-            this -> drawLongAxis();
-            this -> drawFreqs(freqs);
-        }
-};
-
-// U8g2
-Display display(U8G2_R0, SCL, SI, CS, RS, RSE);
-
-// Buttons
-Button* buttons;                            
-hw_timer_t * timer = NULL;                  
-
-// Button functions declaration
-void initButtons();
-void IRAM_ATTR buttonManagement(); 
-
-// Button functions
-/** Init buttons function
- * 
- * @brief This function initializes the buttons.
- *  
- * @return void.
- *  
- * @details This function initializes the buttons' pins, the buttons' definition and the timer.
- *  
- * @note This function is called once.
- * 
- * @see setup().
- * 
- */
-void initButtons()
-{
-    //Buttons pins
-    uint8_t *button_pin = new uint8_t [BUTTON_NUMBER];
-    button_pin[0] = BPM_PIN;                                // Heart rate button
-    button_pin[1] = SPO2_PIN;                               // SPO2 button
-    button_pin[2] = FUNDAMENTALS_PIN;                       // Freqs button
-
-    //Buttons definition
-    Button *buttons_temp = new Button[BUTTON_NUMBER];
-    for(uint8_t i = 0; i < BUTTON_NUMBER; i++)
-    {
-        buttons_temp[i] = Button(button_pin[i]);
-    }
-    buttons = buttons_temp;
-
-    //Buttons'pins initialization
-    for(uint8_t i = 0; i < BUTTON_NUMBER; i++)
-    {
-        pinMode(button_pin[i], INPUT_PULLUP);
-    }
-
-    // Default order
-    buttons[0].orden = 1;
-
-    // Timer initialization
-    timer = timerBegin(0, 80, true);                            //Initiation of timer
-    timerAttachInterrupt(timer, &buttonManagement, true);       //Relate function with timer
-    timerAlarmWrite(timer, 50000, true);                        //Specify time betweem interrupts
-    timerAlarmEnable(timer);                                    //Enable timer
-}
 /** Button management function
  * 
- * @brief This function manages the buttons.
+ * @brief This function reads the buttons.
  *  
  * @return void.
  *  
  * @details This function reads the buttons' values and changes the order of the buttons.
  *  
  * @note This function is called when the timer is activated. 
- *       Therefore, it is called when an interrupt is generated.
- * 
- * @see initButtons().
  * 
  */
-void IRAM_ATTR buttonManagement()
+void buttonsArray::readButtons()
 { 
-    for(uint8_t i = 0; i < BUTTON_NUMBER; i++)
+    for(uint8_t i = 0; i < buttons.size(); i++)
     {
-        buttons[i].val_act = digitalRead(buttons[i].pin);               // Read the value of the button
-        buttons[i].cambioact = buttons[i].val_ant ^ buttons[i].val_act; // XOR of actual value and last value
-        if(buttons[i].cambioact == 1 && buttons[i].cambioanterior == 1) // If both status changes are equal to 1
+        buttons[i].actualValue = digitalRead(buttons[i].pin);                        // Read the value of the button
+        buttons[i].actualChange = buttons[i].previousValue ^ buttons[i].actualValue; // XOR of actual value and last value
+        if(buttons[i].actualChange == 1 && buttons[i].previousChange == 1)           // If both status changes are equal to 1
         {
-            buttons[i].orden = 1;                                         // Order to 1
-            for (uint8_t j = 0; j < BUTTON_NUMBER; j++)
+            buttons[i].order = 1;                                                    // Order to 1
+            for (uint8_t j = 0; j < buttons.size(); j++)
             {
-                if (j != i)buttons[j].orden = 0;                            // Rest of orders to 0 
+                if (j != i)buttons[j].order = 0;                                     // Rest of orders to 0 
             }
-            buttons[i].val_ant = buttons[i].val_act;                      // Last value equal to actual value
-            buttons[i].cambioanterior = 0;                                // Last status change equal to 0
+            buttons[i].previousValue = buttons[i].actualValue;                       // Last value equal to actual value
+            buttons[i].previousChange = 0;                                           // Last status change equal to 0
             return;
         }
-        buttons[i].cambioanterior = buttons[i].cambioact;               // Last status change is equal to acutal change
+        buttons[i].previousChange = buttons[i].actualChange;                         // Last status change is equal to acutal change
     }
 }
+```
 
+> **NOTA**: En caso de necesitar más información sobre la implementación de los botones, se puede consultar el archivo `Button.h` y `Button.cpp`.
 
+###### **Cabecera de la clase**
+
+```cpp
+#ifndef DISPLAY_H
+#define DISPLAY_H
+
+#include <vector>
+#include <U8g2lib.h>
+#include <SPI.h>
+
+namespace std
+{
+    /** Display class
+     *
+     * @brief This class is the display of the device.
+     *
+     * @details This class is used to manage the display of the device.
+     *
+     * @param xAxisBegin X axis begin
+     * @param xAxisEnd X axis end
+     * @param yAxisBegin Y axis begin
+     * @param yAxisEnd Y axis end
+     * @param halfHeight Half height of the display
+     * @param margin Margin of the display
+     *
+     */
+    class Display : public U8G2_ST7565_ERC12864_1_4W_SW_SPI{
+        uint32_t xAxisBegin, xAxisEnd, yAxisBegin, yAxisEnd, halfHeight, margin;
+        
+        public:
+            using U8G2_ST7565_ERC12864_1_4W_SW_SPI::U8G2_ST7565_ERC12864_1_4W_SW_SPI;
+
+            void init ();
+
+            void drawAxis ( bool longAxis = false );
+
+            void drawData ( vector<uint32_t> dataVector );
+
+            void printMeasurements (int32_t value, bool heartRateType );
+
+            void drawBars ( const vector<String>& labels, const vector<float>& amplitudes );
+            
+            uint32_t getYAxisBias ( );
+
+            uint32_t getDataWindowSize ();
+    };
+}
+#endif /* DISPLAY_H */
 ```
 
 #### Página web
 
-Por otra parte, para la visualización de los datos mediante la pagina web se ha utilizado la libreria `WiFi` y `AsyncTCP` para la comunicación con el ESP32 y la libreria `ESPAsyncWebServer` para la creación del servidor web.
+En lo que respecta a la implementacion de la pagina web, se ha utilizado la libreria `ESPAsyncWebServer` para la creacion del servidor web. Para la creacion de la pagina web se ha utilizado el lenguaje HTML, CSS y JavaScript. En ella se pueden visualizar dos graficas una para la frecuencia cardiaca y otra para la saturacion de oxigeno en sangre. Ademas, de los valores calculados en la lectura de los datos.
 
-Para la creación de la pagina web se ha utilizado el lenguaje HTML, CSS y JavaScript. En ella se pueden visualizar dos gráficas una para la frecuencia cardiaca y otra para la saturación de oxigeno en sangre. Además, de los valores calculados en la lectura de los datos.
+El codigo en *JavaScript* de la pagina web prinipalmente se encarga de la creacion de las graficas y de la comunicacion con el servidor mediante *WebSockets*. Para la creacion de las graficas se ha utilizado la libreria `Chart.js`. Para la comunicacion con el servidor se han utilizado mensajes *JSON*.
 
-Las principales funciones que se describen para esta visualización son la creación del servidor web y la funcion en caso de evento del socket.
+En pocas palabras, los datos calculados se agrupan en un mensaje *JSON* (se puede ver un ejemplo en la documentacion del codigo) y se envian al servidor mediante *WebSockets*. El servidor recibe el mensaje y actualiza los datos de la pagina web.
 
-###### **Código del programa**
+###### **Cabecera de la clase**
 
-- **platformio.ini:**
+```cpp
+#ifndef WEBPAGE_H
+#define WEBPAGE_H
 
-```ini
-[env:esp32doit-devkit-v1]
-platform = espressif32
-board = esp32doit-devkit-v1
-framework = arduino
-monitor_speed = 115200
-monitor_port = /dev/ttyUSB0
-lib_deps = ottowinter/ESPAsyncWebServer-esphome@^3.0.0
+#include <Arduino.h>
+#include <ESPAsyncWebServer.h>
+#include <WiFi.h>
+#include <SPIFFS.h>
+
+/** Web page class 
+ * @brief Class to manage the web page
+ * 
+ * @details This class is used to manage the web page
+ * 
+ * @param webServer AsyncWebServer object
+ * @param webSocket AsyncWebSocket object
+ * @param globalClient AsyncWebSocketClient object
+ * 
+ */
+class webPage{
+    AsyncWebServer webServer;
+    AsyncWebSocket webSocket;
+    AsyncWebSocketClient * globalClient;
+
+    public:
+        webPage(int port = 80);
+
+        void begin(const char* ssid, const char* password);
+
+        void initWiFi(const char* ssid, const char* password);
+
+        void initServer();
+
+        void onWsEvent (AsyncWebSocket * server, AsyncWebSocketClient * client, 
+                        AwsEventType type, void * arg, uint8_t *data, size_t len);
+
+        void sendWsMessage(String message);
+};
+
+#endif /* WEBPAGE_H */
 ```
 
-- **main.cpp:**
-            
-```cpp
-#include "WiFi.h"
-#include "SPIFFS.h"
-#include "ESPAsyncWebServer.h"
+###### **Código principal en Javascript de la página web**
 
-//Server vars.
-const char* ssid = "*****";
-const char* password =  "******";
- 
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
- 
-AsyncWebSocketClient * globalClient = NULL;
+```javascript
+// Constants
+const maxDataLength = 32;
+// Arrays
+let heartRateArray = [];
+let timeArray = [];
+let freqsHz = [];
+let freqsAmplitude = [];
 
-//Function declaration
-void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
-void initWiFi();
-void initServer();
-void initWeb();
-void initSPIFSS();
+// Last values
+let lastFreqsHz = [];
+let lastFreqsAmplitude = [];
+let lastRawTime = 0;
 
-void initWeb()
-{
-  initSPIFSS();
-  initWiFi();
-  initServer();
-}
+// Values vars
+let beatsPerMinuteValue = "Calculating BPM...";
+let spo2PercentageValue = "Calculating SPO2...";
 
-void loop()
-{
-    if(globalClient != NULL && globalClient->status() == WS_CONNECTED && getNewData())
+// Conectar al WebSocket del ESP32
+var socket = new WebSocket('ws://' + location.hostname + '/ws');
+socket.onmessage = function (event) {
+    // get new data
+    var jsonData = JSON.parse(event.data);
+
+    // update beats per minute and spo2
+    var beatsPerMinute = jsonData.beatsPerMinute;
+    beatsPerMinuteValue = beatsPerMinute + " BPM";
+    document.getElementById('heartrate').innerHTML = beatsPerMinuteValue;
+    
+    var spo2Percentage = jsonData.spo2Percentage;
+    spo2PercentageValue = spo2Percentage + " %";
+    document.getElementById('spo2').innerHTML = spo2PercentageValue;
+
+    // update heartRateArray, spo2Array and timeArray
+    var newHeartRateData = jsonData.heartRateData;
+    heartRateArray.push(newHeartRateData);
+    if (heartRateArray.length >= maxDataLength) heartRateArray.shift();
+
+    if(lastRawTime != 0)
     {
-        globalClient -> text(message);
-        message = "";
+        var actualTime = Date.now();
+        var millisTimeDifference = actualTime - lastRawTime;
+        var timeDifferenceBetweenData = millisTimeDifference/1000;
+        
+        // calculate accomulated time and round it to 3 decimals
+        var accomulatedTime = Math.floor((timeArray[timeArray.length - 1] + timeDifferenceBetweenData)*1000)/1000;        
+        lastRawTime = actualTime;
+        timeArray.push(accomulatedTime);
+    } else {
+        lastRawTime = Date.now();
+        timeArray.push(0);
+    }
+    if ( timeArray.length > maxDataLength ) timeArray.shift();
+    
+    cardiogramaChart.update();
+    
+    // update freqsHz and freqsAmplitude
+    var freqsDataHz = jsonData.freqsHz;
+    var similarityBetweenHzArrays =  (lastFreqsHz.length == freqsDataHz.length) 
+        && lastFreqsHz.every(function(element, index) {
+        return element === freqsDataHz[index]; 
+    });
+
+    if (!similarityBetweenHzArrays){
+        freqsHz.length = 0;
+        for(var i = 0; i < freqsDataHz.length; i++)
+        {
+            freqsHz.push(freqsDataHz[i]);
+        }
+        lastFreqsHz = freqsDataHz;
+    }
+    
+    var freqsDataAmplitude = jsonData.freqsAmplitude;
+    var similarityBetweenAmplitudeArrays = (lastFreqsAmplitude.length == freqsDataAmplitude.length) 
+        && lastFreqsAmplitude.every(function(element, index) {
+        return element === freqsDataAmplitude[index]; 
+    });
+    if (!similarityBetweenAmplitudeArrays){
+        freqsAmplitude.length = 0;
+        for(var i = 0; i < freqsDataAmplitude.length; i++){
+            freqsAmplitude.push(freqsDataAmplitude[i]);
+        }
+        lastFreqsAmplitude = freqsDataAmplitude;
+        
+        freqsChart.update();
     }
 }
-
-void initSPIFFS()
-{
-  if(!SPIFFS.begin()){
-     Serial.println("An Error has occurred while mounting SPIFFS");
-     for(;;);
-  }
-}
-
-void initWiFi()
-{
-  WiFi.begin(ssid, password);
- 
-  Serial.print("Connecting to WiFi..");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.print(".");
-  }
-
-  Serial.println("");
-  Serial.println("IP: ");
-  Serial.print(WiFi.localIP());
-  Serial.println("");
-}
-
-void initServer()
-{
-  ws.onEvent(onWsEvent);
-  server.addHandler(&ws);
- 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/index.html", "text/html");
-  });
- 
-  server.begin();
-}
-
-void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)
-{
- 
-  if(type == WS_EVT_CONNECT){
- 
-    Serial.println("Websocket client connection received");
-    globalClient = client;
- 
-  } else if(type == WS_EVT_DISCONNECT){
- 
-    Serial.println("Websocket client connection finished");
-    globalClient = NULL;
- 
-  }
-}
 ```
 
-## **Pinout**
+## **Esquema de connexiones**
 
 Para la conexión de los dispositivos se ha utilizado el siguiente pinout:
 
@@ -980,84 +662,23 @@ Para la conexión de los dispositivos se ha utilizado el siguiente pinout:
 | Boton Frecuencia | PIN         | 27   |
 | Boton Frecuencia | GND         | GND  |
 
-Diagrama de conexionado:
 
-```mermaid
-  flowchart TD;
+###### **Esquema de connexiones**
 
-  subgraph M [MAX30102]
-    SCL_M 
-    SDA_M
-    VCC_M 
-    GND_M
-  end
-  
-  SCL_M --> 22
-  SDA_M --> 21
-  VCC_M --> 3V3
-  GND_M --> GND
+![Esquema de connexiones](./images/connections_esquema.png)
 
-  subgraph G [GMG-12864-06D Display]
-    CS_G
-    RSE_G
-    RS_G
-    SCL_G
-    SI_G
-    VCC_G
-    GND_G
-    A_G
-    K_G
-  end
+## **Montaje**
 
-  CS_G --> 5
-  RSE_G --> 32
-  RS_G --> 33
-  SCL_G --> 18
-  SI_G --> 23
-  VCC_G --> 3V3
-  GND_G --> GND
-  A_G --> R[47 OHMS] --> 3V3
-  K_G --> GND
+Respecto al montaje del proyecto, se ha utilizado una placa de prototipado para connectar los dispositivos y el ESP32. Todos los dispositivos han sido colocados dentro de una caja de madera con tal de facilitar su portabilidad. Cabe destacar que todos los cables de connexiones han sido soldados para evitar que se desconecten durante el uso del dispositivo.
 
-  subgraph BPM [Boton BPM]
-    PIN_BPM
-    GND_BPM
-  end
+El resultado final es el siguiente:
 
-  PIN_BPM --> 25
-  GND_BPM --> GND
+<img src="./images/upper_view.png" height="50%" width="50%" >
 
-  subgraph SPO2 [Boton SPO2]
-    PIN_SPO2
-    GND_SPO2
-  end
+<img src="./images/pcb_cabels.png" height="50%" width="50%" >
 
-  PIN_SPO2 --> 26
-  GND_SPO2 --> GND
+Se pueden consultar más imagenes del montaje del proyecto en la carpeta `images`.
 
-  subgraph F [Boton Frecuencia]
-    PIN_F
-    GND_F
-  end
+## **Resultados**
 
-  PIN_F --> 27
-  GND_F --> GND
-
-  subgraph E [ESP32]
-    3V3 ~~~ GND
-    21
-    22
-    23
-    25 ~~~ 18
-    26 ~~~ 5
-    27
-    32
-    33
-  end
-```
-
-## **Montage**
-
-Respecto al montage del proyecto, se ha utilizado una placa de prototipado para conectar los dispositivos y el ESP32. Todos los dispositivos han sido colocados dentro de una caja de madera con tal de facilitar su portabilidad. El resultado final es el siguiente:
-
-![Montage del Proyecto](./images/FinalMount.png)
+Se pueden consultar los resultados del proyecto en la carpeta `images/results`. En esta carpeta se pueden econtrar videos de la visualizacion de los datos en el display y en la pagina web.

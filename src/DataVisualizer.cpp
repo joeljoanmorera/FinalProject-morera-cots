@@ -13,6 +13,7 @@ using namespace std;
  * @param cs CS pin of the display.
  * @param dc DC  pin of the display.
  * @param reset Reset pin of the display.
+ * @param port Port of the web page.
  * 
  * @see Display(), webPage(), buttonsArray().
  * 
@@ -39,6 +40,13 @@ void globalDataVisualizer::setup ( vector<int> buttonPins, const char* ssid, con
     page.begin(ssid, password);
 }
 
+/** Work in progress message function
+ * 
+ * @brief This function displays a message in the display.
+ * 
+ * @see generateVisualization().
+ * 
+ */
 void globalDataVisualizer::workInProgressMessage()
 {
     display.firstPage();
@@ -54,15 +62,17 @@ void globalDataVisualizer::workInProgressMessage()
  * @brief This function generates the visualization.
  *
  * @param globalValuesVar Global values.
+ * 
+ * @details This function generates the visualization. It generates the display visualization and the web page visualization.
+ * 
  */
 void globalDataVisualizer::generateVisualization( globalValues& globalValuesVar )
 {
-    // Visualize in display
-    display.firstPage();
-    while (display.nextPage()) generateDisplayVisualization(globalValuesVar);
-    // Visualize in web page
+    generateDisplayVisualization(globalValuesVar);
+
     String jsonMessage = getJSON(globalValuesVar);
     page.sendWsMessage(jsonMessage);  
+   
     globalValuesVar.shiftHeartRate();
     delay(700);
 }
@@ -77,18 +87,22 @@ void globalDataVisualizer::generateVisualization( globalValues& globalValuesVar 
  */
 void globalDataVisualizer::generateDisplayVisualization ( globalValues& globalValuesVar )
 {
-    Serial.println("Display visuializing: ");
-    if (buttons[0].order){
-        Serial.println("Heart Rate");
-        defaultDataVisualitzation( globalValuesVar, display.getDataWindowSize(), true );
-    } else {
-        if(buttons[1].order){
-            Serial.println("SPO2");
-            defaultDataVisualitzation( globalValuesVar, display.getDataWindowSize(), false );
+    display.firstPage();
+    while (display.nextPage()) 
+    {
+        Serial.println("Display visuializing: ");
+        if (buttons[0].order){
+            Serial.println("Heart Rate");
+            defaultDataVisualitzation( globalValuesVar, display.getDataWindowSize(), true );
         } else {
-            if(buttons[2].order){
-                Serial.println("Frequencies");
-                frequenciesDataVisualitzation(globalValuesVar);
+            if(buttons[1].order){
+                Serial.println("SPO2");
+                defaultDataVisualitzation( globalValuesVar, display.getDataWindowSize(), false );
+            } else {
+                if(buttons[2].order){
+                    Serial.println("Frequencies");
+                    frequenciesDataVisualitzation(globalValuesVar);
+                }
             }
         }
     }   
@@ -178,6 +192,7 @@ uint32_t globalDataVisualizer::getMaxValue( vector<uint32_t> data )
  * @param globalValuesVar Global values.
  * 
  * @see getDisplayStyleFundamentalsFrequencies(), getLabeledFrequency().
+ * 
  */
 void globalDataVisualizer::frequenciesDataVisualitzation ( globalValues& globalValuesVar )
 {
@@ -252,6 +267,7 @@ String globalDataVisualizer::getLabeledFrequency ( float data )
  * @param freqs Vector of frequencies.
  * 
  * @return Max amplitude.
+ * 
  */
 float globalDataVisualizer::getMaxAmplitude ( const vector<fundamentalsFreqs>& freqs )
 {
@@ -305,6 +321,7 @@ String globalDataVisualizer::getJSON ( globalValues& globalValuesVar )
         }
     }
     json += "], ";
+
     json += "\"freqsHz\": [";
     for(int i = 0; i < freqs.size(); i++)
     {
