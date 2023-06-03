@@ -26,8 +26,8 @@ const int BUTTONS_NUMBER = 3;
 const int BPM_PIN = 26;
 const int SPO2_PIN = 25;
 const int FUNDAMENTALS_PIN = 27;
-const char *ssid = "MiFibra-F392"; // SSID of the WiFi
-const char *password = "5QUisHGE"; // Password of the WiFi
+const char *ssid = "*****"; // SSID of the WiFi
+const char *password = "*****"; // Password of the WiFi
 globalValues dataStorage;
 globalDataVisualizer dataVisualizer(U8G2_R0, SCL, SI, CS, RS, RSE);
 globalDataReader dataReader;
@@ -87,16 +87,6 @@ void setup()
         1,               /* priority of the task */
         NULL,            /* Task handle to keep track of created task */
         1);              /* pin task to core 1 */
-
-    // Create task for data tests
-    // xTaskCreatePinnedToCore(
-    //                 fillDataTests,   /* Task function. */
-    //                 "fillDataTests", /* name of task. */
-    //                 10000,        /* Stack size of task */
-    //                 NULL,         /* parameter of the task */
-    //                 1,            /* priority of the task */
-    //                 NULL,         /* Task handle to keep track of created task */
-    //                 0);           /* pin task to core 1 */
 }
 
 /** Loop function
@@ -199,14 +189,14 @@ void IRAM_ATTR readButtonsWrapper()
  */
 void visualizeData(void *parameter)
 {
+    Serial.println(" Calculating... ");
     while(!dataReader.isDataReady())
     {
-        Serial.println(" Calculating... ");
         dataVisualizer.workInProgressMessage();
     }
     for (;;)
     {
-            dataVisualizer.generateVisualization(dataStorage);
+        dataVisualizer.generateVisualization(dataStorage);
     }
 }
 
@@ -228,122 +218,5 @@ void readData(void *parameter)
     for (;;)
     {
         dataReader.readData(dataStorage, SAMPLES, SAMPLING_FREQUENCY);
-    }
-}
-
-/** Data tests initialization function
- *
- * @brief This function initializes the data tests.
- *
- * @return void.
- *
- * @details This function initializes the data tests.
- *
- * @note This function is called once.
- *
- */
-void fillDataTests(void *parameter)
-{
-    uint32_t margin = 8;
-    uint32_t xAxisEnd = 128 - 128 / 2;
-    uint32_t xAxisBegin = margin / 4;
-    uint32_t size = xAxisEnd - xAxisBegin;
-    uint32_t *heartRateData_temp = new uint32_t[size];
-    uint32_t j = 0;
-    for (uint32_t i = 0; i < size; i++)
-    {
-        // Little mountain in the middle with a value of yAxisEnd
-        if (i < xAxisEnd / 4)
-        {
-            heartRateData_temp[i] = 0;
-        }
-        else if (i < xAxisEnd / 2)
-        {
-            heartRateData_temp[i] = j;
-            j += 3;
-        }
-        else if (i < 3 * xAxisEnd / 4)
-        {
-            j -= 3;
-            heartRateData_temp[i] = j;
-        }
-        else
-        {
-            heartRateData_temp[i] = 0;
-        }
-    }
-
-    // for (uint32_t i = 0; i < size; i++)
-    // {
-    //     // Little mountain in the middle with a value of yAxisEnd
-    //     if (i < xAxisEnd / 4)
-    //     {
-    //         heartRateData_temp[i] = 0;
-    //     }
-    //     else if (i < 3 * xAxisEnd / 8)
-    //     {
-    //         heartRateData_temp[i] = j;
-    //         j += 3;
-    //     }
-    //     else if (i < 5 * xAxisEnd / 8)
-    //     {
-    //         if (j >= 3)
-    //             j -= 3;
-    //         heartRateData_temp[i] = j;
-    //     }
-    //     else if (i < 3 * xAxisEnd / 4)
-    //     {
-    //         j += 3;
-    //         heartRateData_temp[i] = j;
-    //     }
-    //     else
-    //     {
-    //         heartRateData_temp[i] = 0;
-    //     }
-    // }
-
-    int32_t *beatsPerMinute_temp = new int32_t[5];
-    int32_t *spo2Percentage_temp = new int32_t[5];
-
-    beatsPerMinute_temp[0] = 60;
-    beatsPerMinute_temp[1] = 70;
-    beatsPerMinute_temp[2] = 80;
-    beatsPerMinute_temp[3] = 90;
-    beatsPerMinute_temp[4] = 100;
-
-    spo2Percentage_temp[0] = 90;
-    spo2Percentage_temp[1] = 91;
-    spo2Percentage_temp[2] = 92;
-    spo2Percentage_temp[3] = 93;
-    spo2Percentage_temp[4] = 94;
-
-    vector<fundamentalsFreqs> freqs_temp(7);
-
-    freqs_temp[0].freqsHz = 100;
-    freqs_temp[0].amplitude = 640;
-    freqs_temp[1].freqsHz = 500;
-    freqs_temp[1].amplitude = 240;
-    freqs_temp[2].freqsHz = 1000;
-    freqs_temp[2].amplitude = 440;
-    freqs_temp[3].freqsHz = 10000;
-    freqs_temp[3].amplitude = 129;
-    freqs_temp[4].freqsHz = 20000;
-    freqs_temp[4].amplitude = 100;
-    freqs_temp[5].freqsHz = 30000;
-    freqs_temp[5].amplitude = 50;
-    freqs_temp[6].freqsHz = 40000;
-    freqs_temp[6].amplitude = 220;
-
-    dataStorage.setBeatsPerMinute(beatsPerMinute_temp[0]);
-    dataStorage.setSpo2Percentage(spo2Percentage_temp[0]);
-    dataStorage.setFreqs(freqs_temp);
-    dataStorage.pushBackHeartRateDataArray(heartRateData_temp, size);
-    for (;;)
-    {
-        dataStorage.setBeatsPerMinute(beatsPerMinute_temp[0]);
-        dataStorage.setSpo2Percentage(spo2Percentage_temp[0]);
-        dataStorage.setFreqs(freqs_temp);
-        dataStorage.pushBackHeartRateDataArray(heartRateData_temp, size);
-        delay(7500);
     }
 }

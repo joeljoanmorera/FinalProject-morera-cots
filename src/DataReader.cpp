@@ -169,8 +169,7 @@ void globalDataReader::doFiltering ( float& resultOfIR, float& resultOfRed )
         resultOfRed += vCoefs[n] * inputRedData[inputRedData.size() - n - 1];
         
     }
-    Serial.println(resultOfIR);
-        // delete the oldest sample from the list
+    // delete the oldest sample from the list
     inputIRData.erase(inputIRData.begin()); 
     inputRedData.erase(inputRedData.begin());
 }
@@ -251,14 +250,6 @@ void globalDataReader::fft ( globalValues& globalValuesVar, uint8_t SAMPLES, uin
 
     vector<fundamentalsFreqs> fftResults = getFFTResults( vReal, SAMPLES, SAMPLING_FREQUENCY );
     globalValuesVar.setFreqs( fftResults );
-   
-    // // FFT from GITHUB COPILOT
-    // FFT.Windowing(vReal, enoughSamples, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-    // FFT.Compute(vReal, vImag, enoughSamples, FFT_FORWARD);
-    // FFT.ComplexToMagnitude(vReal, vImag, enoughSamples);
-    // double peak = FFT.MajorPeak(vReal, enoughSamples, 3200);
-    // Serial.print("Peak: ");
-    // Serial.println(peak);
 }
 
 /** Get FFT results function

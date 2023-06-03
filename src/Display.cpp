@@ -59,6 +59,8 @@ void Display::drawData ( vector<uint32_t> dataVector )
     for (uint32_t i = 0; i < windowSize; i++)
     {
         actualHeight = yBias - dataVector[i];
+        if ( actualHeight < yAxisBegin ) actualHeight = yAxisBegin; 
+        if ( actualHeight > yAxisEnd ) actualHeight = yAxisEnd;
         this -> drawLine(this -> xAxisBegin + i, lastHeight, this -> xAxisBegin + i, actualHeight);
         lastHeight = actualHeight;
     }
@@ -114,14 +116,15 @@ void Display::drawBars ( const vector<String>& labels, const vector<float>& norm
         Serial.println("Error: labels and normalizedAmplitudes must have the same size");
         return;
     }
-    uint32_t maximumLabelsToPlot = 5;
+    uint32_t maximumLabelsToPlot = 7;
     uint32_t labelsPlotted = 0;
     uint32_t xAxisScale = (xAxisEnd + margin/2)/labels.size();
-    uint32_t yAxisStep = yAxisEnd/labels.size();
-    for (uint8_t i = 0; i < labels.size() ; i++)
+    uint32_t yAxisStep = yAxisEnd/maximumLabelsToPlot;
+    for (uint8_t i = 0; i < xAxisEnd - margin ; i++)
     {
         // Plot bar
         uint32_t xAxisPlotBegin = xAxisScale*i + xAxisScale/2;
+        if (xAxisPlotBegin > xAxisEnd) break;
         uint32_t xWidth = int(xAxisPlotBegin + xAxisScale/5);
         uint32_t amplitude = uint32_t(yAxisEnd*normalizedAmplitudes[i]);
 
@@ -130,7 +133,7 @@ void Display::drawBars ( const vector<String>& labels, const vector<float>& norm
             this -> drawLine(xAxisPlotBegin, yAxisEnd -j, xWidth ,yAxisEnd -j);
         }
         // Plot label
-        if ( labelsPlotted <= maximumLabelsToPlot )
+        if ( labelsPlotted < maximumLabelsToPlot )
         {
             this -> setCursor(xAxisEnd + 2*margin, yAxisStep * i + 4/3*margin);
             this -> print(labels[i]);
@@ -161,5 +164,5 @@ uint32_t Display::getYAxisBias ( )
  */
 uint32_t Display::getDataWindowSize ()
 {
-    return xAxisEnd - xAxisBegin;
+    return (xAxisEnd - xAxisBegin);
 }

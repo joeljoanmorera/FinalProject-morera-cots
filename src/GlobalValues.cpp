@@ -130,6 +130,8 @@ vector<uint32_t> globalValues::getHeartRateDataArray ( uint32_t N )
     vector<uint32_t> result;
     for (uint32_t i = 0; i < N; i++)
     {
+        if ( heartRateDataArray[i] > 10*heartRateDataArray[i-1] && i+1 < heartRateDataArray.size()) 
+            heartRateDataArray[i] = (heartRateDataArray[i-1] + heartRateDataArray[i+1])/2;
         result.push_back ( heartRateDataArray[i] );
     }
     return result;

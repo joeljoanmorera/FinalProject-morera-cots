@@ -41,9 +41,12 @@ void globalDataVisualizer::setup ( vector<int> buttonPins, const char* ssid, con
 
 void globalDataVisualizer::workInProgressMessage()
 {
-    display.setFont(u8g2_font_luBS10_tf);
-    display.setCursor(display.getDisplayWidth()/4, display.getDisplayHeight()/2);
-    display.print("Calculating...");
+    display.firstPage();
+    while(display.nextPage()){
+        display.setFont(u8g2_font_luBS10_tf);
+        display.setCursor(uint8_t(display.getDisplayWidth()/5), uint8_t(2*display.getDisplayHeight()/3));
+        display.print("Calculating...");
+    }
 }
 
 /** Generate visualization function
@@ -134,8 +137,8 @@ vector<uint32_t> globalDataVisualizer::defaultDiscretization ( vector<uint32_t> 
     uint32_t yBias = display.getYAxisBias();
     uint32_t yAxisScale = uint32_t(max/yBias);
 
-    if (yAxisScale == 0)yAxisScale = 1;
-    
+    if (yAxisScale == 0) yAxisScale = 1;
+
     for (uint32_t i = 0; i < data.size(); i++)
     {
         discretizedDataVector.push_back(uint32_t(data[i]/yAxisScale));
@@ -159,9 +162,10 @@ uint32_t globalDataVisualizer::getMaxValue( vector<uint32_t> data )
     uint32_t max = 0;
     for (uint8_t i = 0; i < data.size(); i++)
     {
-        if (data[i] > max)
+        uint32_t absValue = uint32_t(abs(float(data[i])));
+        if (absValue > max)
         {
-            max = data[i];
+            max = absValue;
         }
     }
     return max;
