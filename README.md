@@ -1,12 +1,12 @@
-# Proyecto final : Pulsioximetro 
+# Proyecto final : Pulsioxímetro 
 
-En el siguiente repositorio se describe la implementacion de un pulsioximetro, el cual se ha implementado en un ESP32. Este proyecto se ha realizado para la asignatura de Procesadores Digitales (PD) de la Universidad Politecnica de Catalunya (UPC).
+En el siguiente repositorio se describe brevemente el código de un pulsioxímetro implementado en un ESP32. Este proyecto se ha realizado para la asignatura de Procesadores Digitales (PD) de la Universitat Politécnica de Catalunya (UPC).
 
-> **NOTA**: La explicacion que se muestra a continuacion es una explicacion resumida del proyecto. Para una explicacion mas detallada se puede consultar directamente el codigo, el cual esta comentado siguiendo la documentacion de [Doxygen](https://www.doxygen.nl/index.html).
+> **NOTA**: La explicación que se da a continuación consiste en un breve resumen del proyecto. Para más detalles se puede consultar directamente el código, el cual esta documentado mediante [Doxygen](https://www.doxygen.nl/index.html).
 
 ## **Funcionamiento**
 
-El funcionamiento de este proyecto se basa en la lectura de los datos del sensor *MAX30102*, el filtrado de estos datos, la obtencion de los datos de interes y la visualizacion de estos datos mediante un *display* y una pagina web.
+El funcionamiento de este proyecto se basa en la lectura y filtrado de los datos del sensor *MAX30102*, la obtención y procesamiento de los datos de interes y su visualización mediante un *display* y una página web.
 
 ```mermaid
   stateDiagram-v2
@@ -23,7 +23,7 @@ El funcionamiento de este proyecto se basa en la lectura de los datos del sensor
 
 ***
 
-Para la lectura de los datos se ha utilizado la libreria `Wire` y `MAX30102` para la comunicacion I2C con el sensor *MAX30102*. Ademas, se ha creado una clase `globalDataReader` que contiene las funciones necesarias para la lectura de los datos. Las funciones de esta clase se han implementado en el nucleo 0 del ESP32.
+Para la lectura de los datos se ha utilizado la libreria `Wire` y `MAX30102` para la comunicación I2C con el sensor *MAX30102*. Además, se ha creado una clase `globalDataReader` que contiene las funciones necesarias para esta tarea. Las funciones de esta clase se han implementado en el núcleo 0 del ESP32.
 
 ###### **Cabecera de la clase**
 
@@ -121,9 +121,11 @@ namespace std
 
 #### Filtrado de los datos
 
-Para el filtrado de los datos se ha utilizado la libreria `arduinoFFT` para la transformada de Fourier y la libreria `spo2_algorithm` y `heartRate` para el calculo de la saturacion de oxigeno en sangre y el ritmo cardiaco respectivamente.
+Para el filtrado de los datos se ha utilizado la librería `arduinoFFT` para la transformada de Fourier y la librería `spo2_algorithm` y `heartRate` para el cálculo de la saturación de oxígeno en sangre y el ritmo cardíaco respectivamente.
 
-La funcion del filtrado, implementada dentro de la clase `globalDataReader`, consiste en la lectura de los datos del sensor, el filtrado de estos datos y la obtencion de los datos de interes.
+La función del filtrado, implementada dentro de la clase `globalDataReader`, consiste en la lectura y filtrado de los datos del sensor. Con tal de establecer los coeficientes del filtro que se usa en el programa, previamente se realizó un estudio de la señal recibida y mediante `MatLab` se determino el filtro que se usaria. 
+
+> **NOTA**: se pueden ver más detalles al respecto del codigo de MATLAB y las herramientas usadas para el filtrado en la rama `Filtres`
 
 ###### **Código del programa**
 
@@ -212,7 +214,7 @@ void globalDataReader::doFiltering ( float& resultOfIR, float& resultOfRed )
 
 #### FFT
 
-La funcion de la FFT, implementada dentro de la clase `globalDataReader`, consiste en la aplicacion de la FFT a los datos y la obtencion de las frecuencias fundamentales.
+La función de la FFT, implementada dentro de la clase `globalDataReader`, consiste en la aplicación de la FFT a los datos y la obtención de las frecuencias fundamentales.
 
 ###### **Código del programa**
 
@@ -290,7 +292,7 @@ vector<fundamentalsFreqs> globalDataReader::getFFTResults ( double* vReal, uint8
 
 ***
 
-Con la finalidad de facilitar el traspaso de datos entre las dos tareas principales, se ha implementado una clase para acceder y modificar estos datos. 
+Con la finalidad de facilitar el traspaso de datos entre las dos tareas principales, se ha implementado una clase para acceder y modificar los datos filtrados del sensor. Esta clase lleva el nombre de `globalValues` y incluye principalmente funciones de acceso y modificación de datos, por lo que no se entrara en detalle sobre las funciones que la describen.
 
 ###### **Cabecera de la clase**
 
@@ -369,17 +371,17 @@ namespace std
 #endif /* GLOBALVALUES_H */
 ```
 
-### Visualizacion de los datos
+### Visualización de los datos
 
 ***
 
-Para la visualizacion de los datos se ha utilizado un display y una pagina web. Para la implementacion de estos se ha utilizado la libreria `SPI` y `U8g2lib` para el display y la libreria `WiFi` y `ESPAsyncWebServer` para la pagina web. Ambos metodos de visualizacion se han implementado en una clase `globalDataVisualizer` que contiene como atributos un clase `Display` y una clase `WebPage`. Las funciones de esta clase se han implementado en el nucleo 1 del ESP32.
+Para la visualización de los datos se ha utilizado un display y una pagina web. Para la implementacion del *display* se ha utilizado la librería `SPI` y `U8g2lib` y para la pagina web las librerias `WiFi` y `ESPAsyncWebServer`. Ambos métodos de visualización se han implementado en una clase `globalDataVisualizer` que contiene como atributos un clase `Display` y una clase `WebPage`. Las funciones de esta clase se han implementado en el núcleo 1 del ESP32.
 
 #### Display
 
-El display con el que trabajaremos consiste en un GMG-12864-06D, un display de 128x64 pixeles de resolucion. Este display se comunica con el ESP32 mediante el protocolo SPI, por lo que se ha utilizado la libreria `SPI` y `U8g2lib` para facilitar la comunicacion.
+El *display* con el que trabajaremos consiste en un `GMG-12864-06D`, de 128x64 píxeles de resolución. Este se comunica con el ESP32 mediante el protocolo SPI, por lo que se ha utilizado la librería `SPI` y `U8g2lib` para facilitar la comunicación.
 
-El display se connecta al ESP32 mediante 7 pines, los cuales se muestran en la siguiente tabla con su correspondiente descripcion:
+El *display* se connecta al ESP32 mediante 7 pines, los cuales se muestran en la siguiente tabla con su correspondiente descripción:
 
 |PIN GMG-12864-06D| PIN ESP32 | Descripción |
 |-----------------|-----------|-------------|
@@ -393,7 +395,7 @@ El display se connecta al ESP32 mediante 7 pines, los cuales se muestran en la s
 |A                |47Ω -> 3V3 |Anode        |
 |K                |GND        |Cathode      |
 
-El display se ha programado para que muestre tres tipos de datos, el ritmo cardiaco, el porcentaje de oxigeno en sangre y las frecuencias fundamentales. Para ello se ha creado una clase `Display` que hereda de la clase `U8G2_ST7565_ERC12864_1_4W_SW_SPI` de la libreria `U8g2lib`. Esta clase contiene las funciones necesarias para mostrar los datos en el display.
+El *display* se ha programado para que muestre tres tipos de datos, el ritmo cardíaco, el porcentaje de saturación de oxígeno en sangre (ambos con una gráfica en la parte izquierda donde se ve la evolución de la frecuencia cardíaca) y las frecuencias fundamentales. Para ello se ha creado una clase `Display` que hereda de la clase `U8G2_ST7565_ERC12864_1_4W_SW_SPI` de la librería `U8g2lib`. Esta clase contiene las funciones necesarias para mostrar los datos en la pantalla.
 
 Dentro de la clase `Display` se han implementado las siguientes funciones:
 
@@ -405,7 +407,7 @@ Dentro de la clase `Display` se han implementado las siguientes funciones:
 - `getYAxisBias()`: Esta funcion devuelve el valor del eje Y.
 - `getDataWindowSize()`: Esta funcion devuelve el tamaño de la ventana de datos.
 
-Se puede alternar entre los modos de visualizacion mediante tres pulsadores que cambian entre los estados descritos. Para la implementacion de estos se ha definido una clase `Button` y una funcion `readButtons`, que se ejecuta mediante interrupciones por timer, que se encarga de filtrar los pulsos de los botones y cambiar el estado de la variable `orden` a 1 si se pasa el filtro anti-rebote. Esta funcion se ha implementado como su puede ver a continuacion:
+Se puede alternar entre los modos de visualizacion mediante tres pulsadores que cambian entre los estados descritos. Para la implementacion de estos se ha definido una clase `Button` y otra clase `buttonsArray`, que contiene la función `readButtons`, la cual se ejecuta mediante interrupciones por timer y se encarga de filtrar los pulsos de los botones y cambiar el estado de la variable `order` a 1 si se pasa el filtro anti-rebote. Esta funcion se ha implementado como su puede ver a continuación:
 
 ```cpp
 /** Button management function
@@ -441,9 +443,9 @@ void buttonsArray::readButtons()
 }
 ```
 
-> **NOTA**: En caso de necesitar más información sobre la implementación de los botones, se puede consultar el archivo `Button.h` y `Button.cpp`.
+> **NOTA**: En caso de necesitar más información sobre la implementación de los botones, se puede consultar el archivo `Button.cpp` y `buttonsArray.cpp`.
 
-###### **Cabecera de la clase**
+###### **Cabecera de la clase `Display`**
 
 ```cpp
 #ifndef DISPLAY_H
@@ -495,11 +497,11 @@ namespace std
 
 #### Página web
 
-En lo que respecta a la implementacion de la pagina web, se ha utilizado la libreria `ESPAsyncWebServer` para la creacion del servidor web. Para la creacion de la pagina web se ha utilizado el lenguaje HTML, CSS y JavaScript. En ella se pueden visualizar dos graficas una para la frecuencia cardiaca y otra para la saturacion de oxigeno en sangre. Ademas, de los valores calculados en la lectura de los datos.
+En lo que respecta a la implementación de la página web, se ha utilizado la librería `ESPAsyncWebServer` para la creación del servidor web. Para la creación de la página web se ha utilizado el lenguaje HTML, CSS y JavaScript. En ella se pueden visualizar dos gráficas: una para las frecuencias fundamentales de la frecuencia cardíaca y otra para la evolución de la frecuencia cardíaca, ademas, de los valores calculados de porcentaje de saturación en sangre y frecuencia cardíaca media.
 
-El codigo en *JavaScript* de la pagina web prinipalmente se encarga de la creacion de las graficas y de la comunicacion con el servidor mediante *WebSockets*. Para la creacion de las graficas se ha utilizado la libreria `Chart.js`. Para la comunicacion con el servidor se han utilizado mensajes *JSON*.
+El código en *JavaScript* de la página web principalmente se encarga de la creación de las gráficas y de la comunicación con el servidor mediante *WebSockets*. Para la creación de las gráficas se ha utilizado la librería `Chart.js`. Los mensajes que se establecen entre el servidor y la aplicación en `Javascript` són del tipo *JSON*.
 
-En pocas palabras, los datos calculados se agrupan en un mensaje *JSON* (se puede ver un ejemplo en la documentacion del codigo) y se envian al servidor mediante *WebSockets*. El servidor recibe el mensaje y actualiza los datos de la pagina web.
+En pocas palabras, los datos calculados se agrupan en un mensaje *JSON* (se puede ver un ejemplo en la documentación del código) y se envian al cliente mediante *WebSockets*. La aplicación en `JavaScript` recibe el mensaje y actualiza los datos de la página web.
 
 ###### **Cabecera de la clase**
 
@@ -633,12 +635,12 @@ socket.onmessage = function (event) {
         
         freqsChart.update();
     }
-}
+} 
 ```
 
 ## **Esquema de connexiones**
 
-Para la conexión de los dispositivos se ha utilizado el siguiente pinout:
+Para la conexión de los dispositivos se ha utilizado el siguiente pinaje:
 
 | Dispositivo      | Uso         | GPIO |
 |------------------|-------------|------|
@@ -673,12 +675,10 @@ Respecto al montaje del proyecto, se ha utilizado una placa de prototipado para 
 
 El resultado final es el siguiente:
 
-<img src="./images/upper_view.png" height="50%" width="50%" >
+<img src="./images/upper_view.png" width="50%" ><img src="./images/bow_integraton.png" width="50%" >
 
-<img src="./images/pcb_cabels.png" height="50%" width="50%" >
-
-Se pueden consultar más imagenes del montaje del proyecto en la carpeta `images`.
+> **NOTA**: Se pueden consultar más imagenes del montaje del proyecto en la carpeta `images`.
 
 ## **Resultados**
 
-Se pueden consultar los resultados del proyecto en la carpeta `images/results`. En esta carpeta se pueden econtrar videos de la visualizacion de los datos en el display y en la pagina web.
+Se pueden consultar los resultados del proyecto en la carpeta `images/results`, donde se pueden visualizar la salida de los datos en el *display* y en la página web.
