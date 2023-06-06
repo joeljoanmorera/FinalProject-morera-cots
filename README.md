@@ -2,11 +2,14 @@
 
 En el siguiente repositorio se describe brevemente el código de un pulsioxímetro implementado en un ESP32. Este proyecto se ha realizado para la asignatura de Procesadores Digitales (PD) de la Universitat Politécnica de Catalunya (UPC).
 
+La presentación del proyecto se puede encontrar pinchando [aquí](https://docs.google.com/presentation/d/1E0ODB6eI-Wz4NGNXGugeu6bnHJXOKb55/edit?usp=sharing&ouid=104627258973508044844&rtpof=true&sd=true), ya que por limitaciones de espacio no sea podido añadir en el repositorio.
 > **NOTA**: La explicación que se da a continuación consiste en un breve resumen del proyecto. Para más detalles se puede consultar directamente el código, el cual esta documentado mediante [Doxygen](https://www.doxygen.nl/index.html).
 
 ## **Funcionamiento**
 
 El funcionamiento de este proyecto se basa en la lectura y filtrado de los datos del sensor *MAX30102*, la obtención y procesamiento de los datos de interes y su visualización mediante un *display* y una página web.
+
+###### **Pipeline**
 
 ```mermaid
   stateDiagram-v2
@@ -19,14 +22,205 @@ El funcionamiento de este proyecto se basa en la lectura y filtrado de los datos
     Visualizacion --> WebPage
 ```
 
+###### **Código principal**
+
+```cpp
+#include "SPIFFS.h"
+#include "DataVisualizer.h"
+#include "DataReader.h"
+#include "GlobalValues.h"
+
+using namespace std;
+
+// MAX30105 VARIABLES
+#define I2C_SPEED_FAST 400000 // Set I2C frequency to 400kHz
+#define MAX_BRIGHTNESS 255    // Set maximum brightness
+
+// FILTER and FFT variables
+#define SAMPLES 64            // Número de muestras para la FFT
+#define SAMPLING_FREQUENCY 25 // Frecuencia de muestreo en Hz
+
+// DISPLAY PINS
+#define SCL 18
+#define SI 23
+#define CS 5
+#define RS 32
+#define RSE 33
+
+// CONSTANTS and VARIABLES
+// Variables for data visualization
+const int BUTTONS_NUMBER = 3;
+const int BPM_PIN = 26;
+const int SPO2_PIN = 25;
+const int FUNDAMENTALS_PIN = 27;
+const char *ssid = "*****"; // SSID of the WiFi
+const char *password = "*****"; // Password of the WiFi
+globalValues dataStorage;
+globalDataVisualizer dataVisualizer(U8G2_R0, SCL, SI, CS, RS, RSE);
+globalDataReader dataReader;
+hw_timer_t *timer = NULL;
+
+// FUNCTIONS DECLARATION
+void initSPIFFS();
+void initGlobalVisualizer();
+void IRAM_ATTR readButtonsWrapper();
+void readData(void *parameter);
+void visualizeData(void *parameter);
+void fillDataTests(void *parameter);
+
+void setup()
+{
+    // Serial initialization
+    Serial.begin(115200);
+
+    // SPIFFS initialization
+    initSPIFFS();
+
+    // Visualizer init
+    initGlobalVisualizer();
+
+    // Data reader initialization
+    dataReader.setup();
+
+    // Create task for reading
+    xTaskCreatePinnedToCore(
+        readData,   /* Task function. */
+        "readData", /* name of task. */
+        10000,      /* Stack size of task */
+        NULL,       /* parameter of the task */
+        1,          /* priority of the task */
+        NULL,       /* Task handle to keep track of created task */
+        0);         /* pin task to core 0 */
+
+    // Create task for visualization
+    xTaskCreatePinnedToCore(
+        visualizeData,   /* Task function. */
+        "visualizeData", /* name of task. */
+        10000,           /* Stack size of task */
+        NULL,            /* parameter of the task */
+        1,               /* priority of the task */
+        NULL,            /* Task handle to keep track of created task */
+        1);              /* pin task to core 1 */
+}
+
+void loop() {}
+
+void visualizeData(void *parameter)
+{
+    Serial.println(" Calculating... ");
+    while(!dataReader.isDataReady())
+    {
+        dataVisualizer.workInProgressMessage();
+    }
+    for (;;)
+    {
+        dataVisualizer.generateVisualization(dataStorage);
+    }
+}
+
+void readData(void *parameter)
+{
+    for (;;)
+    {
+        dataReader.readData(dataStorage, SAMPLES, SAMPLING_FREQUENCY);
+    }
+}
+
+void initSPIFFS()
+{
+    if (!SPIFFS.begin())
+    {
+        Serial.println("An Error has occurred while mounting SPIFFS");
+        for (;;);
+    }
+}
+
+void initGlobalVisualizer()
+{
+    // Definition of pins array
+    vector<int> buttons_pins(BUTTONS_NUMBER);
+    buttons_pins[0] = BPM_PIN;
+    buttons_pins[1] = SPO2_PIN;
+    buttons_pins[2] = FUNDAMENTALS_PIN;
+
+    // Data visualization initialization
+    dataVisualizer.setup(buttons_pins, ssid, password);
+
+    // Timer inizialization
+    timer = timerBegin(0, 80, true);
+    timerAttachInterrupt(timer, &readButtonsWrapper, true);
+    timerAlarmWrite(timer, 100000, true);
+    timerAlarmEnable(timer);
+}
+
+void IRAM_ATTR readButtonsWrapper()
+{
+    dataVisualizer.buttons.readButtons();
+}
+
+```
+
+###### **Diagrama de flujo**
+
+```mermaid
+    flowchart LR;
+    S --> R & V
+    subgraph S[Setup]
+        SPIFFS[Inicializacion del File System del ESP32] --> SV
+        SV --> RV
+        RV --> T[Configuracion de tareas]
+
+        subgraph SV [Configuracion de la variable global de visualizacion]
+            B[Configuracion del WiFi] --> C[Configuracion del servidor web]
+            C --> D[Configuracion del display]
+            D --> E[Configuracion de los botones]
+        end
+
+        subgraph RV [Configuracion de la variable global de lectura]
+            F[Lectura fichero coeficientes] --> G[Configuracion del sensor]
+            G --> H[Configuracion del filtro]
+        end
+    end
+    
+    subgraph R[Lectura de datos]
+        I[Lectura de valores] --> ifRI{Suficientes \n muestras?}
+        ifRI --> J[Filtrado de valores]
+        J --> ifConv{Suficientes iteraciones \n de convolución?}
+        ifConv --> K[Calculo de frecuencia cardiaca y sus frecuencias fundamentales]
+        K --> P[Guardado y muestra de los datos por el puerto serie]
+    end
+
+    subgraph V[Visualizacion de los datos]
+        ifLS{Primera inserccion \n de datos?} --No--> PS[Mostrar mensaje de cargando en puerto serie y en display]
+        ifLS --No--> LP
+        subgraph LP[Generar visualizaciones]
+            VG --> WG --> ShD[Desplazar los datos al eliminar el primero]
+            subgraph VG[Generar visualizacion del display]
+                ifO{Orden de la visualizacion \n correspondiente a 1?} --> doV
+                subgraph doV[Ejecutar funcion de la visualizacion correspodiente]
+                    oD[Obtener los datos calculados] --> N
+                    N[Procesar los datos para la visualizacion] --> eD[Mostrar los datos por el Display]
+                end
+            end
+            subgraph WG[Generar visualizacion de la pàgina web]
+                OJSON[Obtener mensaje del tipo JSON] --> SWS[Enviar mensaje JSON]
+            end
+        end
+    end
+```
+
 ### Lectura de los datos
 
 ***
 
 Para la lectura de los datos se ha utilizado la libreria `Wire` y `MAX30102` para la comunicación I2C con el sensor *MAX30102*. Además, se ha creado una clase `globalDataReader` que contiene las funciones necesarias para esta tarea. Las funciones de esta clase se han implementado en el núcleo 0 del ESP32.
 
-
-
+| MAX30102 PINS| ESP32 PINS |
+|--------------|------------|
+| SCL          | GPIO 22    |
+| SDA          | GPIO 21    |
+| VCC          | 3V3        |
+| GND          | GND        |
 
 ###### **Cabecera de la clase**
 
