@@ -25,6 +25,9 @@ El funcionamiento de este proyecto se basa en la lectura y filtrado de los datos
 
 Para la lectura de los datos se ha utilizado la libreria `Wire` y `MAX30102` para la comunicación I2C con el sensor *MAX30102*. Además, se ha creado una clase `globalDataReader` que contiene las funciones necesarias para esta tarea. Las funciones de esta clase se han implementado en el núcleo 0 del ESP32.
 
+
+
+
 ###### **Cabecera de la clase**
 
 ```cpp
@@ -124,6 +127,10 @@ namespace std
 Para el filtrado de los datos se ha utilizado la librería `arduinoFFT` para la transformada de Fourier y la librería `spo2_algorithm` y `heartRate` para el cálculo de la saturación de oxígeno en sangre y el ritmo cardíaco respectivamente.
 
 La función del filtrado, implementada dentro de la clase `globalDataReader`, consiste en la lectura y filtrado de los datos del sensor. Con tal de establecer los coeficientes del filtro que se usa en el programa, previamente se realizó un estudio de la señal recibida y mediante `MatLab` se determino el filtro que se usaria. 
+
+Para el filtrado de los datos se ha utilizado un filtro FIR, el cual se ha implementado en el nucleo 0 del ESP32. El filtro FIR se ha implementado usando el comando fir1() de MATLAB i exportando el resultado de los coeficientes a un archivo.txt para poder leerlo desde el ESP32. El filtro consiste en un filtro pasa-banda con una frecuencia de corte inferior de 0.5Hz y una frecuencia de corte superior de 3Hz. Podemos ver el codigo en la rama Filtres de git. 
+
+Con los coeficientes del filtro hemos aplicado una convolución con los datos de entrada para obtener los datos filtrados. Estos datos han sido almacenados en un buffer para poder obtener el sop2 y el ritmo cardiaco. También hemos aplicado una fft para obtener la respuesta en freqüència de la señal.
 
 > **NOTA**: se pueden ver más detalles al respecto del codigo de MATLAB y las herramientas usadas para el filtrado en la rama `Filtres`
 
